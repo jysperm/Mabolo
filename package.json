@@ -1,0 +1,22 @@
+{
+  "name": "mabolo",
+  "version": "0.1.0",
+  "description": "Just a simple wrapper of mongodb api.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hackplan/Mabolo.git"
+  },
+  "contributors": [
+    {
+      "name": "jysperm",
+      "email": "jysperm@gmail.com",
+      "url": "https://jysperm.me"
+    }
+  ],
+  "dependencies": {
+    "lingo": "^0.0.5",
+    "mongodb": "^1.4.15",
+    "underscore": "^1.7.0"
+  }
+}
