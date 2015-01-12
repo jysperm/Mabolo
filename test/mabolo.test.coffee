@@ -24,6 +24,7 @@ describe 'mabolo', ->
     mabolo = null
     Account = null
     mobile = randomNumber 11
+    account_id = null
 
     before ->
       mabolo = new Mabolo mongodb_uri
@@ -47,6 +48,7 @@ describe 'mabolo', ->
       , (err, account) ->
         account._id.should.be.exist
         account.username.should.be.equal 'jysperm'
+        account_id = account._id
         done err
 
     it '#findOne', (done) ->
@@ -54,6 +56,7 @@ describe 'mabolo', ->
         mobile: mobile
       , (err, account) ->
         account.username.should.be.equal 'jysperm'
+        account.should.be.instanceOf Account
         done err
 
     it '#find', (done) ->
@@ -61,4 +64,34 @@ describe 'mabolo', ->
         mobile: mobile
       , (err, accounts) ->
         accounts[0].username.should.be.equal 'jysperm'
+        accounts[0].should.be.instanceOf Account
         done err
+
+    it '#count', (done) ->
+      Account.count (err, count) ->
+        (count >= 1).should.be.true
+        done err
+
+    it '#findById with ObjectID', (done) ->
+      Account.findById account_id, (err, account) ->
+        account.mobile.should.be.equal mobile
+        done err
+
+    it '#findById with string', (done) ->
+      Account.findById account_id.toString(), (err, account) ->
+        account.mobile.should.be.equal mobile
+        done err
+
+    it '#findById with invalid ObjectId', (done) ->
+      Account.findById 'object_id', (err, account) ->
+        expect(account).to.not.exist
+        err.should.be.exist
+        done()
+
+    it '#buildModel', ->
+      Account.buildModel(
+        username: 'faceair'
+      ).toObject().username.should.be.equal 'faceair'
+
+    it '#getCollection', ->
+      Account.getCollection().constructor.name.should.be.equal 'Collection'

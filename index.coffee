@@ -35,7 +35,7 @@ class Model
       @findOne.apply @, arguments
     catch err
       callback = _.last arguments
-      callback err if callback
+      callback err if _.isFunction callback
 
   @findOneAndUpdate: ->
 
