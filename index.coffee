@@ -4,32 +4,29 @@
 _ = require 'underscore'
 
 class Model
-  @_mabolo: null
-  @_name: null
-  @_schema: null
-  @_options: null
-
-  @_collection: null
-  @_queued_operators: []
+  @initialize: (options) ->
+    _.extend @, options,
+      _collection: null
+      _queued_operators: []
 
   @create: ->
-    @execute('insert').apply @, @injectCallback arguments, (err, documents) ->
+    @execute('insert') @injectCallback arguments, (err, documents) ->
       @callback err, documents?[0]
 
   @count: ->
-    @execute('count').apply @, @injectCallback arguments
+    @execute('count') @injectCallback arguments
 
   @find: ->
     self = @
 
-    @execute('find').apply @, @injectCallback arguments, (err, cursor) ->
+    @execute('find') @injectCallback arguments, (err, cursor) ->
       return @callback err if err
 
       cursor.toArray (err, documents) =>
         @callback err, self.buildModel documents
 
   @findOne: ->
-    @execute('findOne').apply @, @injectCallback arguments
+    @execute('findOne') @injectCallback arguments
 
   @findById: (id) ->
     try
@@ -49,10 +46,10 @@ class Model
   @findByIdAndRemove: ->
 
   @update: ->
-    @execute('update').apply @, arguments
+    @execute('update') arguments
 
   @remove: ->
-    @execute('remove').apply @, arguments
+    @execute('remove') arguments
 
   @runQueuedOperators: ->
     @_collection = @getCollection()
@@ -68,7 +65,7 @@ class Model
       @callback.apply @, arguments
 
     if _.isFunction original
-      next = =>
+      next = ->
         callback.apply
           callback: ->
             original.apply self, arguments
@@ -80,8 +77,13 @@ class Model
     return args
 
   @execute: (name) ->
-    return =>
-      @_collection[name].apply @_collection, arguments
+    if @_collection
+      return (args) =>
+        @_collection[name].apply @_collection, args
+    else
+      return (args) =>
+        @_queued_operators.push =>
+          @_collection[name].apply @_collection, args
 
   @getCollection: ->
     return @_mabolo.db?.collection @_options.collection_name
@@ -116,24 +118,6 @@ class Model
 
   remove: ->
 
-_.each [
-  'create', 'count', 'find', 'findOne', 'findById', 'findOneAndUpdate', 'findByIdAndUpdate'
-  'findByIdAndRemove', 'update', 'remove', 'findOneAndRemove'
-], (name) ->
-  original = Model[name]
-
-  Model[name] = ->
-    args = arguments
-    self = @
-
-    next = ->
-      original.apply self, args
-
-    if @getCollection()
-      next()
-    else
-      @_queued_operators.push next
-
 module.exports = class Mabolo extends EventEmitter
   db: null
   models: {}
@@ -162,7 +146,6 @@ module.exports = class Mabolo extends EventEmitter
   # options.collection_name: overwrite default collection name
   model: (name, schema, options) ->
     model = ->
-      @constructor = model
       Model.apply @, arguments
 
     options = _.extend(
@@ -175,12 +158,17 @@ module.exports = class Mabolo extends EventEmitter
       model.runQueuedOperators()
 
     Proto = ->
+    Proto.constructor = model
     Proto.prototype = Model.prototype
     model.prototype = new Proto
 
-    return _.extend model, Model,
+    _.extend model, Model
+
+    model.initialize
       _mabolo: @
       _name: name
       _schema: schema
       _options: options
       methods: model.prototype
+
+    return model

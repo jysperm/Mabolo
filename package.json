@@ -14,9 +14,21 @@
       "url": "https://jysperm.me"
     }
   ],
+  "scripts": {
+    "test": "COV_TEST=true ./node_modules/.bin/mocha --compilers coffee:coffee-script/register --require test/env --reporter node_modules/mocha-reporter-cov-summary -- test/*.test.coffee",
+    "test-only": "./node_modules/.bin/mocha -b --compilers coffee:coffee-script/register --require test/env -- test/*.test.coffee",
+    "test-cov-html": "COV_TEST=true ./node_modules/.bin/mocha --compilers coffee:coffee-script/register --require test/env --reporter html-cov -- test/*.test.coffee > coverage-reporter.html"
+  },
   "dependencies": {
+    "coffee-script": "^1.7.1",
     "lingo": "^0.0.5",
     "mongodb": "^1.4.15",
     "underscore": "^1.7.0"
+  },
+  "devDependencies": {
+    "mocha": "^2.0.0",
+    "chai": "^1.9.2",
+    "coffee-coverage": "0.4.2",
+    "mocha-reporter-cov-summary": "^0.1.0"
   }
 }
