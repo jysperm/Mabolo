@@ -30,8 +30,7 @@ class Model
 
   @findById: (id) ->
     try
-      id = ObjectID id
-      arguments[0] = id
+      arguments[0] = ObjectID id
       @findOne.apply @, arguments
     catch err
       callback = _.last arguments
@@ -52,7 +51,16 @@ class Model
 
     @execute('findAndModify') [query, options.sort, update, options, callback]
 
-  @findByIdAndUpdate: ->
+  # findByIdAndUpdate id, update, options, callback
+  # findByIdAndUpdate id, update, callback
+  # options.new: default to true
+  @findByIdAndUpdate: (id) ->
+    try
+      arguments[0] = ObjectID id
+      @findOneAndUpdate.apply @, arguments
+    catch err
+      callback = _.last arguments
+      callback err if _.isFunction callback
 
   @findOneAndRemove: ->
 

@@ -117,3 +117,12 @@ describe 'mabolo', ->
       , (err, account) ->
         account.username.should.be.equal 'Jysperm'
         done err
+
+    it '#findByIdAndUpdate', (done) ->
+      Account.findByIdAndUpdate account_id,
+        $set:
+          username: 'Wang Ziting'
+      , (err, account) ->
+        account.username.should.be.equal 'Wang Ziting'
+        done err
+
