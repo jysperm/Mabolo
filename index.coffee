@@ -37,7 +37,20 @@ class Model
       callback = _.last arguments
       callback err if _.isFunction callback
 
-  @findOneAndUpdate: ->
+  # findOneAndUpdate query, update, options, callback
+  # findOneAndUpdate query, update, callback
+  # options.sort
+  # options.new: default to true
+  @findOneAndUpdate: (query, update, options, _callback) ->
+    self = @
+
+    callback = _.last @injectCallback arguments, (err, document) ->
+      @callback err, self.buildModel document
+
+    unless _callback
+      options = {new: true, sort: []}
+
+    @execute('findAndModify') [query, options.sort, update, options, callback]
 
   @findByIdAndUpdate: ->
 
@@ -114,7 +127,8 @@ class Model
     console.log @constructor, args
     @constructor.update.apply @constructor, args
 
-  validate: ->
+  validate: (callback) ->
+    callback()
 
   remove: ->
 

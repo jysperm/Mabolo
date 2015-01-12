@@ -95,3 +95,25 @@ describe 'mabolo', ->
 
     it '#getCollection', ->
       Account.getCollection().constructor.name.should.be.equal 'Collection'
+
+    it '#findOneAndUpdate', (done) ->
+      Account.findOneAndUpdate
+        mobile: mobile
+      ,
+        $set:
+          username: 'Jysperm'
+      , (err, account) ->
+        account.username.should.be.equal 'Jysperm'
+        done err
+
+    it '#findOneAndUpdate when options.new is false', (done) ->
+      Account.findOneAndUpdate
+        mobile: mobile
+      ,
+        $set:
+          username: 'Jysperm'
+      ,
+        new: false
+      , (err, account) ->
+        account.username.should.be.equal 'Jysperm'
+        done err
