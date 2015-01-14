@@ -88,8 +88,8 @@ describe 'mabolo', ->
         err.should.be.exist
         done()
 
-    it '#buildModel', ->
-      Account.buildModel(
+    it '#buildDocument', ->
+      Account.buildDocument(
         username: 'faceair'
       ).toObject().username.should.be.equal 'faceair'
 
@@ -126,3 +126,49 @@ describe 'mabolo', ->
         account.username.should.be.equal 'Wang Ziting'
         done err
 
+    it '#findByIdAndRemove', (done) ->
+      Account.findByIdAndRemove account_id, (err) ->
+        Account.findById account_id, (err, account) ->
+          expect(account).to.not.exist
+          done err
+
+  describe 'model', ->
+    mabolo = null
+    Account = null
+    mobile = randomNumber 11
+    account = null
+
+    before (done) ->
+      mabolo = new Mabolo mongodb_uri
+
+      Account = mabolo.model 'Account',
+        username:
+          type: String
+
+      Account.create
+        username: 'jysperm'
+        mobile: mobile
+      , (err, _account) ->
+        account = _account
+        done err
+
+    it '#save', (done) ->
+      yudong = new Account username: 'yudong'
+
+      yudong.save (err) ->
+        yudong._id.should.be.exist
+        done err
+
+    it '#update', (done) ->
+      account.update
+        $set:
+          username: 'Jysperm'
+      , (err) ->
+        account.username.should.be.equal 'Jysperm'
+        done err
+
+    it '#remove', (done) ->
+      account.remove ->
+        Account.findById account._id, (err, account) ->
+          expect(account).to.not.exist
+          done err

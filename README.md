@@ -14,28 +14,49 @@ Just a simple wrapper of mongodb api.
 
 Define model methods and instance methods:
 
-    User.staticMethod = ->
+    User.findByName = (name) ->
+      arguments[0] = username: name
+      @findOne.apply @, arguments
 
-    User.methods.instanceMethod = ->
+    User::getName = ->
+      return @username
 
 ### Build-in methods
 
 Model Methods:
 
-* User.find
-* User.findOne
-* User.findById
-* User.findByIdAndUpdate
-* User.getCollection
+* Model.create
+* Model.count
+* Model.find
+* Model.findOne
+* Model.findById
+* Model.findOneAndUpdate
+* Model.findByIdAndUpdate
+* Model.findOneAndRemove
+* Model.findByIdAndRemove
+* Model.update
+* Model.remove
+* Model.getCollection
+* Model.buildDocument
 
 Instance Methods:
 
-* user.toObject
-* user.update
-* user.remove
+* document.toObject
+* document.update
+* document.save
+* document.remove
+* (TODO) document.validate
 
 ### Create user and save to MongoDB
 Mabolo will queue your operators before connected to MongoDB.
+
+    user = new User
+      username: 'jysperm'
+
+    user.save (err) ->
+      console.log @_id
+
+Or use `User.create`:
 
     User.create
       username: 'jysperm'
