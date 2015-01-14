@@ -63,8 +63,14 @@ Or use `User.create`:
     , (err, user) ->
       console.log user._id
 
-### find users from MongoDB
+### Find users from MongoDB
 `User.find` will callback with array of data, instead of a Cursor.
 
     User.find {}, (err, users) ->
       console.log users[0].username
+
+### TODO list
+
+* `document.save` support save exists document
+* Use schema definition to validate document
+* Support embedded and reference relationship between models
