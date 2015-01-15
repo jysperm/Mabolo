@@ -10,6 +10,8 @@ if process.env.COV_TEST == 'true'
     exclude: ['test', 'node_modules', '.git']
 
 _.extend global,
+  mongodb_uri: 'mongodb://localhost/mabolo_test'
+  Mabolo: require '../index'
   expect: chai.expect
   _: _
 

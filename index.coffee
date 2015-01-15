@@ -247,10 +247,7 @@ module.exports = class Mabolo extends EventEmitter
   connect: (uri, callback = ->) ->
     MongoClient.connect uri, (err, db) =>
       if err
-        if @listeners 'error'
-          @emit 'error', err
-        else
-          throw err
+        @emit 'error', err
 
       else
         @db = db
