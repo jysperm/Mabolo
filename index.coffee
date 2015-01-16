@@ -3,6 +3,37 @@
 {en: lingo} = require 'lingo'
 _ = require 'underscore'
 
+dotGet = (object, path) ->
+  paths = path.split '.'
+  ref = object
+
+  for key in paths
+    if ref[key] == undefined
+      return undefined
+    else
+      ref = ref[key]
+
+  return ref
+
+dotSet = (object, path, value) ->
+  paths = path.split('.')
+  last_path = paths.pop()
+  ref = object
+
+  for key in paths
+    ref[key] ?= {}
+    ref = ref[key]
+
+  ref[last_path] = value
+
+dotPick = (object, keys) ->
+  result = {}
+
+  for key in keys
+    dotSet result, key, dotGet(object, key)
+
+  return result
+
 class Model
   @initialize: (options) ->
     _.extend @, options,
@@ -179,18 +210,20 @@ class Model
     else
       return document
 
-  _isNew: false
-  _isRemoved: false
-
   constructor: (document) ->
+    Object.defineProperties @,
+      _isNew:
+        writable: true
+      _isRemoved:
+        writable: true
+
     unless document._id
       @_isNew = true
 
     _.extend @, document
 
   toObject: ->
-    props = _.without.apply @, [Object.getOwnPropertyNames @].concat ['_isNew', '_isRemoved']
-    return _.pick.apply @, [@].concat props
+    return _.pick.apply @, [@].concat Object.keys @
 
   # update update, options, callback
   # update update, callback
@@ -227,6 +260,49 @@ class Model
     model.execute('insert') [@toObject(), callback]
 
   validate: (callback) ->
+    error = (path, type, message) ->
+      err = new Error "validating fail when `#{path}` #{type} #{message}"
+      err.name = type
+      callback err
+
+    # Build-in
+    for path, definition of @constructor._schema
+      value = dotGet @, path
+
+      if value == undefined and !definition.required
+        continue
+
+      err = (message) ->
+        error path, 'type', message
+
+      switch definition.type
+        when String
+          unless _.isString value
+            return err 'is string'
+
+        when Number
+          unless _.isNumber value
+            return err 'is number'
+
+        when Date
+          unless _.isDate value
+            return err 'is date'
+
+        when Boolean
+          unless _.isBoolean value
+            return err 'is boolean'
+
+        when ObjectID
+          try
+            new ObjectID value
+          catch
+            return err 'is objectid'
+
+        when Object
+
+        else
+          throw new Error "unknown filed type #{definition.type.toString()}}"
+
     callback()
 
   remove: (callback) ->
@@ -238,6 +314,8 @@ class Model
 module.exports = class Mabolo extends EventEmitter
   db: null
   models: {}
+
+  ObjectID: ObjectID
 
   # uri: optional mongodb uri, if provided will automatically call `Mabolo.connect`
   constructor: (uri) ->

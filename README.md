@@ -45,7 +45,7 @@ Instance Methods:
 * document.update
 * document.save
 * document.remove
-* (TODO) document.validate
+* document.validate
 
 ### Create user and save to MongoDB
 Mabolo will queue your operators before connected to MongoDB.
@@ -69,8 +69,59 @@ Or use `User.create`:
     User.find {}, (err, users) ->
       console.log users[0].username
 
+### Default value for field
+
+    User = mabolo.model 'User',
+      name:
+        default: 'none'
+
+* default: default value of this field
+
+Multi-level path:
+
+    User = mabolo.model 'User',
+      'name.full':
+        default: 'none'
+
+### Define Validator for field
+
+Build-in validator:
+
+    User = mabolo.model 'User',
+      username:
+        type: String
+        enum: ['tomato', 'potato']
+        regex: /^[a-z]{3,8}$/
+        required: true
+
+* type: `String`, `Number`, `Date`, `Boolean`, `mabolo.ObjectID`
+
+    And `Object` meaning that no additional validation, same with `null`
+
+Define your own validator:
+
+    User = mabolo.model 'User',
+      username:
+        validator: (username) ->
+          return username.test /^[a-z]{3,8}$/
+
+Or asynchronous validator:
+
+    User = mabolo.model 'User',
+      username:
+        validator: fs.exists
+
+Multi-validator:
+
+    User = mabolo.model 'User',
+      username:
+        validator:
+          character: (username) -> username.test /^[a-z]$/
+          length: (username) -> 3 < username.length < 8
+
+`character` and `length` will be included in error message.
+
 ### TODO list
 
 * `document.save` support save exists document
-* Use schema definition to validate document
 * Support embedded and reference relationship between models
