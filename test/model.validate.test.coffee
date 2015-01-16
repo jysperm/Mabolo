@@ -153,3 +153,25 @@ describe 'model.validate', ->
       jysperm.validate (err) ->
         err.message.should.match /nickname.*length/
         done()
+
+  describe 'async validator', ->
+    User = null
+
+    before ->
+      User = mabolo.model 'User',
+        username:
+          validator: (require 'fs').exists
+
+    it 'should success', (done) ->
+      jysperm = new User
+       username: 'jysperm'
+
+      jysperm.validate done
+
+    it 'should fail', (done) ->
+      jysperm = new User
+        username: 'index.coffee'
+
+      jysperm.validate (err) ->
+        err.message.should.match /username.*async/
+        done()

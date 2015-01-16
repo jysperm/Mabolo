@@ -1,6 +1,7 @@
 {ObjectID, MongoClient} = require 'mongodb'
 {EventEmitter} = require 'events'
 {en: lingo} = require 'lingo'
+async = require 'async'
 _ = require 'underscore'
 
 dotGet = (object, path) ->
@@ -33,6 +34,16 @@ dotPick = (object, keys) ->
     dotSet result, key, dotGet(object, key)
 
   return result
+
+formatValidators = (validators) ->
+  if _.isFunction validators
+    validators = [validators]
+  else if !_.isArray(validators) and _.isObject(validators)
+    validators = _.map validators, (validator, name) ->
+      validator.validator_name = name
+      return validator
+
+  return validators
 
 class Model
   @initialize: (options) ->
@@ -329,27 +340,39 @@ class Model
         unless definition.regex.test value
           return error path, 'regex', "match #{definition.regex}"
 
+      # sync validator
       if definition.validator
-        validators = definition.validator
-
-        if _.isFunction validators
-          validators = [validators]
-        else if !_.isArray(validators) and _.isObject(validators)
-          validators = _.map validators, (validator, name) ->
-            validator.validator_name = name
-            return validator
-
-        sync_validators = _.filter validators, (validator) ->
+        sync_validators = _.filter formatValidators(definition.validator), (validator) ->
           return validator.length != 2
-
-        async_validators = _.filter validators, (validator) ->
-          return validator.length == 2
 
         for validator in sync_validators
           unless validator.apply @, [value]
             return error path, 'validator(sync)', validator.validator_name
 
-    callback.apply @
+    # async validator
+    async_validators = []
+
+    for path, definition of @constructor._schema
+      value = dotGet @, path
+
+      if value == undefined and !definition.required
+        continue
+
+      async_validators = async_validators.concat _.filter formatValidators(definition.validator), (validator) ->
+        validator.value = value
+        validator.path = path
+        return validator.length == 2
+
+    async.each async_validators, (validator, callback) ->
+      validator validator.value, (err) ->
+        if err
+          err = new Error "validating fail when `#{path}` validator(async) #{err}"
+          err.name = 'validator(async)'
+
+        callback err
+
+    , (err) =>
+      callback.apply @, [err]
 
   remove: (callback) ->
     @_isRemoved = true
