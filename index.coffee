@@ -323,11 +323,31 @@ class Model
 
       if definition.enum
         unless value in definition.enum
-          return err "in [#{definition.enum.join ', '}]"
+          return error path, 'enum', "in [#{definition.enum.join ', '}]"
 
       if definition.regex
         unless definition.regex.test value
-          return err "match #{definition.regex}"
+          return error path, 'regex', "match #{definition.regex}"
+
+      if definition.validator
+        validators = definition.validator
+
+        if _.isFunction validators
+          validators = [validators]
+        else if !_.isArray(validators) and _.isObject(validators)
+          validators = _.map validators, (validator, name) ->
+            validator.validator_name = name
+            return validator
+
+        sync_validators = _.filter validators, (validator) ->
+          return validator.length != 2
+
+        async_validators = _.filter validators, (validator) ->
+          return validator.length == 2
+
+        for validator in sync_validators
+          unless validator.apply @, [value]
+            return error path, 'validator(sync)', validator.validator_name
 
     callback.apply @
 

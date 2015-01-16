@@ -103,7 +103,7 @@ Define your own validator:
     User = mabolo.model 'User',
       username:
         validator: (username) ->
-          return username.test /^[a-z]{3,8}$/
+          return /^[a-z]{3,8}$/.test username
 
 Or asynchronous validator:
 
@@ -116,7 +116,7 @@ Multi-validator:
     User = mabolo.model 'User',
       username:
         validator:
-          character: (username) -> username.test /^[a-z]$/
+          character: (username) -> /^[a-z]+$/.test username
           length: (username) -> 3 < username.length < 8
 
 `character` and `length` will be included in error message.

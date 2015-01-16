@@ -108,3 +108,48 @@ describe 'model.validate', ->
       jysperm.validate (err) ->
         err.message.should.match /age.*in/
         done()
+
+  describe 'sync validator', ->
+    User = null
+
+    before ->
+      User = mabolo.model 'User',
+        username:
+          validator: (username) ->
+            return /^[a-z]{3,8}$/.test username
+
+        nickname:
+          validator:
+            character: (nickname) -> /^[a-z]+$/.test nickname
+            length: (nickname) -> 3 < nickname.length < 8
+
+    it 'should success', (done) ->
+      jysperm = new User
+        username: 'jysperm'
+        nickname: 'jysperm'
+
+      jysperm.validate done
+
+    it 'should fail with username', (done) ->
+      jysperm = new User
+        username: 'JYSPERM'
+
+      jysperm.validate (err) ->
+        err.message.should.match /username.*validator/
+        done()
+
+    it 'should fail with character', (done) ->
+      jysperm = new User
+        nickname: 'JYSPERM'
+
+      jysperm.validate (err) ->
+        err.message.should.match /nickname.*character/
+        done()
+
+    it 'should fail with length', (done) ->
+      jysperm = new User
+        nickname: 'jy'
+
+      jysperm.validate (err) ->
+        err.message.should.match /nickname.*length/
+        done()
