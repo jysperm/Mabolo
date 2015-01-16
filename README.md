@@ -72,7 +72,7 @@ Or use `User.create`:
 ### Default value for field
 
     User = mabolo.model 'User',
-      name:
+      full_name:
         default: 'none'
 
 * default: default value of this field

@@ -16,7 +16,7 @@ dotGet = (object, path) ->
   return ref
 
 dotSet = (object, path, value) ->
-  paths = path.split('.')
+  paths = path.split '.'
   last_path = paths.pop()
   ref = object
 
@@ -41,12 +41,12 @@ class Model
       _queued_operators: []
 
   # create document, callback
-  # create document, options, callback
-  # document: document or documents
-  # callback.this: model
-  @create: ->
-    @execute('insert') @injectCallback arguments, (err, documents) ->
-      @callback err, documents?[0]
+  # callback.this: document
+  @create: (document, callback) ->
+    document = new @ document
+
+    document.save (err) ->
+      callback.apply document, [err, document]
 
   # count query, callback
   # count query, options, callback
@@ -249,21 +249,38 @@ class Model
     if !@_isNew and @_isRemoved
       throw new Error 'Currently only supports new document'
 
-    callback = (err, documents) =>
-      document = documents?[0]
+    for path, definition of model._schema
+      {default: default_value} = definition
 
-      if document
-        _.extend @, document
+      if dotGet(@, path) == undefined and default_value != undefined
+        if _.isFunction default_value
+          default_value = default_value()
+        else
+          default_value = _.clone default_value
 
-      _callback.apply @, [err, model.buildDocument document?[0]]
+        dotSet @, path, default_value
 
-    model.execute('insert') [@toObject(), callback]
+    document = dotPick @toObject(), _.keys(model._schema)
 
+    @validate (err) ->
+      return _callback err if err
+
+      callback = (err, documents) =>
+        document = documents?[0]
+
+        if document
+          _.extend @, document
+
+        _callback.apply @, [err, model.buildDocument document?[0]]
+
+      model.execute('insert') [document, callback]
+
+  # callback.this: document
   validate: (callback) ->
-    error = (path, type, message) ->
+    error = (path, type, message) =>
       err = new Error "validating fail when `#{path}` #{type} #{message}"
       err.name = type
-      callback err
+      callback.apply @, [err]
 
     # Build-in
     for path, definition of @constructor._schema
@@ -303,7 +320,7 @@ class Model
         else
           throw new Error "unknown filed type #{definition.type.toString()}}"
 
-    callback()
+    callback.apply @
 
   remove: (callback) ->
     @_isRemoved = true

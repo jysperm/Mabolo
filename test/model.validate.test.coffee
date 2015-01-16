@@ -1,12 +1,5 @@
 mabolo = new Mabolo mongodb_uri
 
-User = mabolo.model 'User',
-  username:
-    type: String
-
-  email:
-    type: String
-
 describe 'model.validate', ->
   describe 'type, required', ->
     User = null
