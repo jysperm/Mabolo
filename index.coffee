@@ -292,33 +292,42 @@ class Model
       err = (message) ->
         error path, 'type', message
 
-      switch definition.type
-        when String
-          unless _.isString value
-            return err 'is string'
+      if definition.type
+        switch definition.type
+          when String
+            unless _.isString value
+              return err 'is string'
 
-        when Number
-          unless _.isNumber value
-            return err 'is number'
+          when Number
+            unless _.isNumber value
+              return err 'is number'
 
-        when Date
-          unless _.isDate value
-            return err 'is date'
+          when Date
+            unless _.isDate value
+              return err 'is date'
 
-        when Boolean
-          unless _.isBoolean value
-            return err 'is boolean'
+          when Boolean
+            unless _.isBoolean value
+              return err 'is boolean'
 
-        when ObjectID
-          try
-            new ObjectID value
-          catch
-            return err 'is objectid'
+          when ObjectID
+            try
+              new ObjectID value
+            catch
+              return err 'is objectid'
 
-        when Object
+          when Object
 
-        else
-          throw new Error "unknown filed type #{definition.type.toString()}}"
+          else
+            throw new Error "unknown filed type #{definition.type.toString()}}"
+
+      if definition.enum
+        unless value in definition.enum
+          return err "in [#{definition.enum.join ', '}]"
+
+      if definition.regex
+        unless definition.regex.test value
+          return err "match #{definition.regex}"
 
     callback.apply @
 
