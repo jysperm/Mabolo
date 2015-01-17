@@ -1,6 +1,6 @@
 {
   "name": "mabolo",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Just a simple wrapper of mongodb api.",
   "license": "MIT",
   "repository": {
