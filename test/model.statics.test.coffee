@@ -11,9 +11,7 @@ describe 'model.statics', ->
   jysperm_id = null
 
   before (done) ->
-    (new Mabolo mongodb_uri).on 'connected', (db) ->
-      db.dropDatabase (err) ->
-        done err
+    User.remove done
 
   describe 'Model.create', ->
     it 'create jysperm', (done) ->

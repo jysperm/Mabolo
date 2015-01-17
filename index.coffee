@@ -1,6 +1,7 @@
 {ObjectID, MongoClient} = require 'mongodb'
 {EventEmitter} = require 'events'
 {en: lingo} = require 'lingo'
+crypto = require 'crypto'
 async = require 'async'
 _ = require 'underscore'
 
@@ -31,13 +32,28 @@ dotPick = (object, keys) ->
   result = {}
 
   for key in keys
-    dotSet result, key, dotGet(object, key)
+    if dotGet(object, key) != undefined
+      dotSet result, key, dotGet(object, key)
 
   return result
+
+randomVersion = ->
+  return crypto.pseudoRandomBytes(4).toString 'hex'
+
+addVersionForUpdates = (updates) ->
+  is_atom_op = _.every _.keys(updates), (key) ->
+    return key[0] == '$'
+
+  if is_atom_op
+    updates.$set ?= {}
+    updates.$set['__v'] ?= randomVersion()
+  else
+    updates['__v'] ?= randomVersion()
 
 formatValidators = (validators) ->
   if _.isFunction validators
     validators = [validators]
+
   else if !_.isArray(validators) and _.isObject(validators)
     validators = _.map validators, (validator, name) ->
       validator.validator_name = name
@@ -98,12 +114,13 @@ class Model
       callback = _.last arguments
       callback err if _.isFunction callback
 
-  # findOneAndUpdate query, update, options, callback
-  # findOneAndUpdate query, update, callback
+  # findOneAndUpdate query, updates, options, callback
+  # findOneAndUpdate query, updates, callback
   # options.sort
   # options.new: default to true
   # callback.this: model
-  @findOneAndUpdate: (query, update, options, _callback) ->
+  @findOneAndUpdate: (query, updates, options, _callback) ->
+    addVersionForUpdates updates
     self = @
 
     callback = _.last @injectCallback arguments, (err, document) ->
@@ -112,7 +129,7 @@ class Model
     unless _callback
       options = {new: true, sort: []}
 
-    @execute('findAndModify') [query, options.sort, update, options, callback]
+    @execute('findAndModify') [query, options.sort, updates, options, callback]
 
   # findByIdAndUpdate id, update, options, callback
   # findByIdAndUpdate id, update, callback
@@ -156,7 +173,8 @@ class Model
   # update query, updates, callback
   # update query, updates, options, callback
   # callback.this: model
-  @update: ->
+  @update: (query, updates) ->
+    addVersionForUpdates updates
     @execute('update') arguments
 
   # remove query, callback
@@ -227,11 +245,16 @@ class Model
         writable: true
       _isRemoved:
         writable: true
-
-    unless document._id
-      @_isNew = true
+      __v:
+        writable: true
 
     _.extend @, document
+
+    unless @_id
+      @_isNew = true
+
+    unless @__v
+      @__v = randomVersion()
 
   toObject: ->
     return _.pick.apply @, [@].concat Object.keys @
@@ -258,7 +281,7 @@ class Model
     model = @constructor
 
     if !@_isNew and @_isRemoved
-      throw new Error 'Currently only supports new document'
+      throw new Error 'Only supports save new document'
 
     for path, definition of model._schema
       {default: default_value} = definition
@@ -272,6 +295,7 @@ class Model
         dotSet @, path, default_value
 
     document = dotPick @toObject(), _.keys(model._schema)
+    document.__v = @__v
 
     @validate (err) ->
       return _callback err if err
@@ -286,6 +310,62 @@ class Model
 
       model.execute('insert') [document, callback]
 
+  # modifier(commit(err))
+  # modifier.this: document
+  # callback(err)
+  # callback.this: document
+  modify: (modifier, callback) ->
+    model = @constructor
+    FINISHED = {}
+
+    unless @_id
+      throw new Error 'Document not yet exists in MongoDB'
+
+    overwrite = (latest) =>
+      for key in _.keys model._schema
+        delete @[key]
+
+      _.extend @, latest
+      @__v = latest.__v
+
+    rollback = (callback) =>
+      model.findById @_id, (err, result) =>
+        overwrite result
+        callback()
+
+    async.forever (next) =>
+      modifier.call @, (err) =>
+        if err
+          return rollback ->
+            next err
+
+        @validate (err) ->
+          if err
+            return rollback ->
+              next err
+
+          original_v = @__v
+          @__v = randomVersion()
+          document = dotPick @toObject(), _.keys(model._schema)
+
+          model.findOneAndUpdate
+            _id: @_id
+            __v: original_v
+          , document, (err, result) =>
+            if err
+              rollback ->
+                next err
+
+            else if result
+              next FINISHED
+
+            else
+              rollback next
+
+    , (err) =>
+      err = null if err == FINISHED
+      callback.apply @, [err]
+
   # callback.this: document
   validate: (callback) ->
     error = (path, type, message) =>
@@ -293,7 +373,7 @@ class Model
       err.name = type
       callback.apply @, [err]
 
-    # Build-in
+    # Built-in
     for path, definition of @constructor._schema
       value = dotGet @, path
 

@@ -1,3 +1,8 @@
+before (done) ->
+  (new Mabolo mongodb_uri).on 'connected', (db) ->
+    db.dropDatabase (err) ->
+      done err
+
 describe 'Mabolo', ->
   mabolo = null
 

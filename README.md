@@ -48,7 +48,7 @@ Instance Methods:
 * document.validate
 
 ### Create user and save to MongoDB
-Mabolo will queue your operators before connected to MongoDB.
+Mabolo will queue your operators before connecting to MongoDB.
 
     user = new User
       username: 'jysperm'
@@ -85,7 +85,7 @@ Multi-level path:
 
 ### Define Validator for field
 
-Build-in validator:
+Built-in validator:
 
     User = mabolo.model 'User',
       username:
@@ -121,7 +121,16 @@ Multi-validator:
 
 `character` and `length` will be included in error message.
 
+### Modify exists document atomically
+
+    user.modify (commit) ->
+      @name = 'jysperm'
+      commit()
+    , (err) ->
+      # ...
+
+The document will rollback to latest version if validating fail or `commit` received an err.
+
 ### TODO list
 
-* `document.save` support save exists document
 * Support embedded and reference relationship between models
