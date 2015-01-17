@@ -1,6 +1,10 @@
 ## Mabolo
 Just a simple wrapper of mongodb api.
 
+> 这个东西还是非常好的嘛！—— Master Yeechan
+
+> 和 Mongoose 各有千秋。—— orzFly
+
 ### Connect to MongoDB
 
     Mabolo = require 'mabolo'
