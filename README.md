@@ -25,7 +25,7 @@ Define model methods and instance methods:
     User::getName = ->
       return @username
 
-### Build-in methods
+### Built-in methods
 
 Model Methods:
 
@@ -48,6 +48,7 @@ Instance Methods:
 * document.toObject
 * document.update
 * document.save
+* document.modify
 * document.remove
 * document.validate
 
