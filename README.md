@@ -177,3 +177,4 @@ Only following methods is available in sub-Model instance:
 ### TODO list
 
 * Support reference relationship between models
+* Define database indexs

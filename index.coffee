@@ -63,6 +63,36 @@ formatValidators = (validators) ->
 
   return validators
 
+isTypeOf = (Type, value) ->
+  switch Type
+    when String
+      unless _.isString value
+        return 'is string'
+
+    when Number
+      unless _.isNumber value
+        return 'is number'
+
+    when Date
+      unless _.isDate value
+        return 'is date'
+
+    when Boolean
+      unless _.isBoolean value
+        return 'is boolean'
+
+    when ObjectID
+      unless value instanceof ObjectID
+        return 'is objectid'
+
+    when Object
+      pass
+
+    else
+      throw new Error "unknown type #{Type.toString()}}"
+
+  return null
+
 class Model
   @initialize: (options) ->
     _.extend @, options,
@@ -305,10 +335,10 @@ class Model
             _index: index
 
       else if definition.type?._schema
-        if value == undefined and !definition.required
+        unless _.isObject value
           continue
 
-        if value._path
+        if value?._path
           continue
 
         SubModel = definition.type
@@ -453,43 +483,37 @@ class Model
       if value == undefined and !definition.required
         continue
 
-      if _.isArray(definition) and _.isArray(value)
-        for item in value
-          sub_documents.push item
-
-      if value?._path
-        sub_documents.push value
-
-      err = (message) ->
+      typeError = (message) ->
         error path, 'type', message
 
-      if definition.type and !definition.type._schema
-        switch definition.type
-          when String
-            unless _.isString value
-              return err 'is string'
+      if _.isArray definition
+        Type = _.first definition
 
-          when Number
-            unless _.isNumber value
-              return err 'is number'
+        for item in value
+          if Type._schema
+            unless item instanceof Type
+              return typeError 'is array of ' + Type._name
 
-          when Date
-            unless _.isDate value
-              return err 'is date'
-
-          when Boolean
-            unless _.isBoolean value
-              return err 'is boolean'
-
-          when ObjectID
-            unless value instanceof ObjectID
-              return err 'is objectid'
-
-          when Object
-            pass
+            sub_documents.push item
 
           else
-            throw new Error "unknown filed type #{definition.type.toString()}}"
+            err = isTypeOf Type, item
+            return typeError err if err
+
+      if definition.type
+        if definition.type._schema
+          if value
+            unless value instanceof definition.type
+              return typeError 'is ' + definition.type._name
+
+            sub_documents.push value
+
+          else if definition.required
+            return typeError 'is ' + definition.type._name
+
+        else
+          err = isTypeOf definition.type, value
+          return typeError err if err
 
       if definition.enum
         unless value in definition.enum

@@ -19,6 +19,7 @@ describe 'model.embedded', ->
           type: String
 
         last_token:
+          required: true
           type: Token
 
     it 'should build sub-document when created', ->
@@ -46,6 +47,33 @@ describe 'model.embedded', ->
         err.should.be.exist
         done()
 
+    it 'should fail when missing sub-document', (done) ->
+      User.create
+        username: 'faceair'
+      , (err) ->
+        err.should.be.exist
+        done()
+
   describe 'embedded array of string', ->
+    User = null
+
+    before ->
+      User = mabolo.model 'User',
+        username:
+          type: String
+
+        tags: [String]
+
+    it 'should success when save', (done) ->
+      jysperm = new User
+        username: 'jysperm'
+        tags: ['node.js', 'php']
+
+      jysperm.save done
+
+    it 'should success when save empty array', (done) ->
+      User.create
+        username: 'faceair'
+      , done
 
   describe 'embedded array of model', ->
