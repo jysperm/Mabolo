@@ -369,9 +369,7 @@ class Model
   # callback.this: document
   validate: (callback) ->
     error = (path, type, message) =>
-      err = new Error "validating fail when `#{path}` #{type} #{message}"
-      err.name = type
-      callback.apply @, [err]
+      callback.apply @, [new Error "validating fail when `#{path}` #{type} #{message}"]
 
     # Built-in
     for path, definition of @constructor._schema
@@ -402,9 +400,7 @@ class Model
               return err 'is boolean'
 
           when ObjectID
-            try
-              new ObjectID value
-            catch
+            unless value instanceof ObjectID
               return err 'is objectid'
 
           when Object
@@ -447,7 +443,6 @@ class Model
       validator validator.value, (err) ->
         if err
           err = new Error "validating fail when `#{path}` validator(async) #{err}"
-          err.name = 'validator(async)'
 
         callback err
 
