@@ -160,7 +160,7 @@ The document will rollback to latest version if validating fail or `commit` rece
 
 You can use `parent()` to get instance of parent-Model:
 
-    Token.revoke = (callback) ->
+    Token::revoke = (callback) ->
       @parent().update
         $pull:
           tokens:

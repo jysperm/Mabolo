@@ -103,6 +103,7 @@ class Model
       @runQueuedOperators()
 
   # create document, callback
+  # callback(err, document)
   # callback.this: document
   @create: (document, callback) ->
     document = new @ document
@@ -113,14 +114,16 @@ class Model
   # count query, callback
   # count query, options, callback
   # count callback
-  # callback.this: model
+  # callback(err, count)
+  # callback.this: Model
   @count: ->
     @execute('count') @injectCallback arguments
 
   # find query, callback
   # find query, options, callback
   # find callback
-  # callback.this: model
+  # callback(err, documents)
+  # callback.this: Model
   @find: ->
     self = @
 
@@ -133,14 +136,16 @@ class Model
   # findOne query, callback
   # findOne query, options, callback
   # findOne callback
-  # callback.this: model
+  # callback(err, document)
+  # callback.this: Model
   @findOne: ->
     @execute('findOne') @injectCallback arguments
 
   # findById id, callback
   # findById id, options, callback
   # findById callback
-  # callback.this: model
+  # callback(err, document)
+  # callback.this: Model
   @findById: (id) ->
     try
       arguments[0] = _id: ObjectID id
@@ -153,7 +158,8 @@ class Model
   # findOneAndUpdate query, updates, callback
   # options.sort
   # options.new: default to true
-  # callback.this: model
+  # callback(err, document)
+  # callback.this: Model
   @findOneAndUpdate: (query, updates, options, _callback) ->
     addVersionForUpdates updates
     self = @
@@ -169,7 +175,8 @@ class Model
   # findByIdAndUpdate id, update, options, callback
   # findByIdAndUpdate id, update, callback
   # options.new: default to true
-  # callback.this: model
+  # callback(err, document)
+  # callback.this: Model
   @findByIdAndUpdate: (id) ->
     try
       arguments[0] = _id: ObjectID id
@@ -181,7 +188,8 @@ class Model
   # findOneAndRemove query, options, callback
   # findOneAndRemove query, callback
   # options.sort
-  # callback.this: model
+  # callback(err, document)
+  # callback.this: Model
   @findOneAndRemove: (query, options, _callback) ->
     self = @
 
@@ -196,7 +204,8 @@ class Model
   # findByIdAndRemove id, options, callback
   # findByIdAndRemove id, callback
   # options.sort
-  # callback.this: model
+  # callback(err, document)
+  # callback.this: Model
   @findByIdAndRemove: (id) ->
     try
       arguments[0] = _id: ObjectID id
@@ -207,14 +216,16 @@ class Model
 
   # update query, updates, callback
   # update query, updates, options, callback
-  # callback.this: model
+  # callback(err, result)
+  # callback.this: Model
   @update: (query, updates) ->
     addVersionForUpdates updates
     @execute('update') arguments
 
   # remove query, callback
   # remove query, options, callback
-  # callback.this: model
+  # callback(err, result)
+  # callback.this: Model
   @remove: ->
     @execute('remove') arguments
 
@@ -249,6 +260,7 @@ class Model
         @_queued_operators.push =>
           @_collection[name].apply @_collection, args
 
+  # return: Collection
   @getCollection: ->
     return @_mabolo.db?.collection @_options.collection_name
 
@@ -347,9 +359,11 @@ class Model
           _parent: @
           _path: path
 
+  # return: Model
   parent: ->
     return @_parent
 
+  # return: object
   toObject: ->
     # TODO: sub-Model
     return _.pick.apply @, [@].concat Object.keys @
@@ -357,6 +371,7 @@ class Model
   # update update, options, callback
   # update update, callback
   # options.new: default to true
+  # callback(err)
   # callback.this: document
   update: (update, options, callback) ->
     # TODO: sub-Model
@@ -372,6 +387,7 @@ class Model
 
     @constructor.findByIdAndUpdate.apply @constructor, args
 
+  # callback(err)
   # callback.this: document
   save: (_callback) ->
     model = @constructor
@@ -466,6 +482,7 @@ class Model
       err = null if err == FINISHED
       callback.apply @, [err]
 
+  # callback(err)
   # callback.this: document
   validate: (callback) ->
     @buildSubDocuments()
@@ -563,6 +580,7 @@ class Model
     ], (err) =>
       callback.call @, err
 
+  # callback(err, result)
   remove: (callback) ->
     # TODO: sub-Model
     @_isRemoved = true
@@ -576,11 +594,13 @@ module.exports = class Mabolo extends EventEmitter
 
   ObjectID: ObjectID
 
-  # uri: optional mongodb uri, if provided will automatically call `Mabolo.connect`
+  # uri: if provided will automatically call `Mabolo.connect`
   constructor: (uri) ->
     if uri
       @connect uri
 
+  # uri: optional mongodb uri
+  # callback(err, db)
   connect: (uri, callback = ->) ->
     MongoClient.connect uri, (err, db) =>
       if err
