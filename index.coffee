@@ -67,6 +67,9 @@ class Model
       _collection: null
       _queued_operators: []
 
+    if @getCollection()
+      @runQueuedOperators()
+
   # create document, callback
   # callback.this: document
   @create: (document, callback) ->
@@ -219,7 +222,13 @@ class Model
 
   # private
   @runQueuedOperators: ->
-    @_collection = @getCollection()
+    if @_queue_started
+      return
+
+    _.extend @,
+      _queue_started: true
+      _collection: @getCollection()
+
     until _.isEmpty @_queued_operators
       @_queued_operators.shift()()
 
