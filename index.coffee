@@ -5,6 +5,8 @@ crypto = require 'crypto'
 async = require 'async'
 _ = require 'underscore'
 
+pass = ->
+
 dotGet = (object, path) ->
   paths = path.split '.'
   ref = object
@@ -254,6 +256,12 @@ class Model
         writable: true
       _isRemoved:
         writable: true
+      _parent:
+        writable: true
+      _path:
+        writable: true
+      _index:
+        writable: true
       __v:
         writable: true
 
@@ -262,10 +270,58 @@ class Model
     unless @_id
       @_isNew = true
 
+      if @_parent
+        @_id = ObjectID()
+
     unless @__v
       @__v = randomVersion()
 
+    @buildSubDocuments()
+
+  buildSubDocuments: ->
+    model = @constructor
+    schema = model._schema
+
+    for path, definition of schema
+      value = dotGet @, path
+
+      if _.isArray definition
+        if value == undefined
+          dotSet @, path, []
+          continue
+
+        SubModel = _.first definition
+
+        unless SubModel._schema
+          continue
+
+        dotSet @, path, _.map value, (value, index) =>
+          if value._path
+            return value
+
+          return sud_document = new SubModel _.extend value,
+            _parent: @
+            _path: path
+            _index: index
+
+      else if definition.type?._schema
+        if value == undefined and !definition.required
+          continue
+
+        if value._path
+          continue
+
+        SubModel = definition.type
+
+        dotSet @, path, new SubModel _.extend value,
+          _parent: @
+          _path: path
+
+  parent: ->
+    return @_parent
+
   toObject: ->
+    # TODO: sub-Model
     return _.pick.apply @, [@].concat Object.keys @
 
   # update update, options, callback
@@ -273,6 +329,7 @@ class Model
   # options.new: default to true
   # callback.this: document
   update: (update, options, callback) ->
+    # TODO: sub-Model
     args = _.toArray arguments
     args.unshift @_id
 
@@ -290,7 +347,10 @@ class Model
     model = @constructor
 
     if !@_isNew and @_isRemoved
-      throw new Error 'Only supports save new document'
+      throw new Error 'Cant save exists document'
+
+    if @_parent
+      throw new Error 'Cant save sub-document'
 
     for path, definition of model._schema
       {default: default_value} = definition
@@ -315,7 +375,7 @@ class Model
         if document
           _.extend @, document
 
-        _callback.apply @, [err, model.buildDocument document?[0]]
+        _callback.call @, err
 
       model.execute('insert') [document, callback]
 
@@ -324,6 +384,7 @@ class Model
   # callback(err)
   # callback.this: document
   modify: (modifier, callback) ->
+    # TODO: sub-Model
     model = @constructor
     FINISHED = {}
 
@@ -377,8 +438,13 @@ class Model
 
   # callback.this: document
   validate: (callback) ->
+    @buildSubDocuments()
+
     error = (path, type, message) =>
       callback.apply @, [new Error "validating fail when `#{path}` #{type} #{message}"]
+
+    sub_documents = []
+    async_validators = []
 
     # Built-in
     for path, definition of @constructor._schema
@@ -387,10 +453,17 @@ class Model
       if value == undefined and !definition.required
         continue
 
+      if _.isArray(definition) and _.isArray(value)
+        for item in value
+          sub_documents.push item
+
+      if value?._path
+        sub_documents.push value
+
       err = (message) ->
         error path, 'type', message
 
-      if definition.type
+      if definition.type and !definition.type._schema
         switch definition.type
           when String
             unless _.isString value
@@ -413,6 +486,7 @@ class Model
               return err 'is objectid'
 
           when Object
+            pass
 
           else
             throw new Error "unknown filed type #{definition.type.toString()}}"
@@ -427,38 +501,46 @@ class Model
 
       # sync validator
       if definition.validator
-        sync_validators = _.filter formatValidators(definition.validator), (validator) ->
+        validators = formatValidators definition.validator
+
+        sync_validators = _.filter validators, (validator) ->
           return validator.length != 2
 
         for validator in sync_validators
           unless validator.apply @, [value]
             return error path, 'validator(sync)', validator.validator_name
 
-    # async validator
-    async_validators = []
+        async_validators = async_validators.concat _.filter validators, (validator) ->
+          unless validator.length == 2
+            return false
 
-    for path, definition of @constructor._schema
-      value = dotGet @, path
+          return _.extend validator,
+            value: value
+            path: path
 
-      if value == undefined and !definition.required
-        continue
+    async.parallel [
+      # sub-Model
+      (callback) ->
+        async.each sub_documents, (sub_document, callback) ->
+          sub_document.validate callback
+        , callback
 
-      async_validators = async_validators.concat _.filter formatValidators(definition.validator), (validator) ->
-        validator.value = value
-        validator.path = path
-        return validator.length == 2
+      # async validator
+      (callback) ->
+        async.each async_validators, (validator, callback) ->
+          validator validator.value, (err) ->
+            if err
+              err = new Error "validating fail when `#{path}` validator(async) #{err}"
 
-    async.each async_validators, (validator, callback) ->
-      validator validator.value, (err) ->
-        if err
-          err = new Error "validating fail when `#{path}` validator(async) #{err}"
+            callback err
 
-        callback err
+        , callback
 
-    , (err) =>
-      callback.apply @, [err]
+    ], (err) =>
+      callback.call @, err
 
   remove: (callback) ->
+    # TODO: sub-Model
     @_isRemoved = true
 
     @constructor.remove _id: @_id, ->

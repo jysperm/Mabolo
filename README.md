@@ -136,6 +136,44 @@ Multi-validator:
 
 The document will rollback to latest version if validating fail or `commit` received an err.
 
+### Embedded Model
+
+    Token = mabolo.model 'Token',
+      code:
+        type: String
+
+    User = mabolo.model 'User',
+      username:
+        type: String
+
+      last_token:
+        type: Token
+
+      friends_id: [mabolo.ObjectID]
+      tokens: [Token]
+      tags: [String]
+
+* Every sub-Model has a `_id` and `__v`
+* Validators of sub-Model will be run first
+* Sub-Model will be create when parent-Model created
+* `String`, `Number`, `Date`, `Boolean`, `mabolo.ObjectID` also can be used as an sub-Model
+
+You can use `parent()` to get instance of parent-Model:
+
+    Token.revoke = (callback) ->
+      @parent().update
+        $pull:
+          tokens:
+            code: @code
+      , callback
+
+Only following methods is available in sub-Model instance:
+
+* update
+* modify
+* remove
+* validate
+
 ### TODO list
 
-* Support embedded and reference relationship between models
+* Support reference relationship between models
