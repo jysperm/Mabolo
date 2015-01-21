@@ -174,7 +174,7 @@ Only following methods is available in sub-Model instance:
 * remove
 * validate
 
-### TODO list
+### Todo list
 
 * Support reference relationship between models
 * Define database indexs
