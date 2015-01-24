@@ -365,8 +365,21 @@ class Model
 
   # return: object
   toObject: ->
-    # TODO: sub-Model
-    return _.pick.apply @, [@].concat Object.keys @
+    result = _.pick.apply @, [@].concat Object.keys @
+
+    for path, definition of @constructor._schema
+      if _.isArray definition
+        if _.first(definition)._schema
+          dotSet result, path, _.map dotGet(result, path), (item) ->
+            return item.toObject()
+
+      else if definition.type?._schema
+        value = dotGet(result, path)
+
+        if value?.toObject
+          dotSet result, path, value.toObject()
+
+    return result
 
   # update update, options, callback
   # update update, callback
@@ -409,7 +422,7 @@ class Model
 
         dotSet @, path, default_value
 
-    document = dotPick @toObject(), _.keys(model._schema)
+    document = dotPick @, _.keys(model._schema)
     document.__v = @__v
 
     @validate (err) ->
@@ -462,7 +475,7 @@ class Model
 
           original_v = @__v
           @__v = randomVersion()
-          document = dotPick @toObject(), _.keys(model._schema)
+          document = dotPick @, _.keys(model._schema)
 
           model.findOneAndUpdate
             _id: @_id
