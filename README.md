@@ -169,6 +169,7 @@ You can use `parent()` to get instance of parent-Model:
 
 Only following methods is available in sub-Model instance:
 
+* toObject
 * update
 * modify
 * remove

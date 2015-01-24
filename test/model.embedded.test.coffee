@@ -42,6 +42,8 @@ describe 'model.embedded', ->
       jysperm.toObject().last_token.code.should.be.equal '03b9a5f0d18bc6b6'
       jysperm.toObject().last_token.should.not.instanceof Token
 
+    it 'should success when update sub-document'
+
     it 'should fail when sub-document validating fail', (done) ->
       User.create
         username: 'faceair'
