@@ -1,7 +1,7 @@
 {ObjectID} = require 'mongodb'
 crypto = require 'crypto'
 
-exports.pass = ->
+exports.pass = pass = ->
 
 exports.dotGet = dotGet = (object, path) ->
   paths = path.split '.'
@@ -37,6 +37,18 @@ exports.dotPick = (object, keys) ->
 
 exports.randomVersion = randomVersion = ->
   return crypto.pseudoRandomBytes(4).toString 'hex'
+
+exports.isModel = (value) ->
+  return value?._schema
+
+exports.isEmbedded = (value) ->
+  return value?._path
+
+exports.isEmbeddedDocument = (value) ->
+  return value?._path and !value._index
+
+exports.isEmbeddedArray = (value) ->
+  return value?._path and value._index
 
 exports.addVersionForUpdates = (updates) ->
   is_atom_op = _.every _.keys(updates), (key) ->
@@ -88,15 +100,3 @@ exports.isTypeOf = (Type, value) ->
       throw new Error "unknown type #{Type.toString()}}"
 
   return null
-
-exports.isModel = (value) ->
-  return value?._schema
-
-exports.isEmbedded = (value) ->
-  return value?._path
-
-exports.isEmbeddedDocument = (value) ->
-  return value?._path and !value._index
-
-exports.isEmbeddedArray = (value) ->
-  return value?._path and value._index

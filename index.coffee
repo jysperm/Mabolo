@@ -4,196 +4,68 @@
 async = require 'async'
 _ = require 'underscore'
 
+{extend, isEmpty} = _
+
 {pass, dotGet, dotSet, dotPick, randomVersion, addVersionForUpdates} = require './utils'
 {formatValidators, isTypeOf, isModel, isEmbedded, isEmbeddedDocument} = require './utils'
 {isEmbeddedArray} = require './utils'
 
 class Model
   @initialize: (options) ->
-    _.extend @, options,
+    extend @, options,
       _collection: null
       _queued_operators: []
 
     if @getCollection()
       @runQueuedOperators()
 
-  # create document, callback
-  # callback(err, document)
-  # callback.this: document
-  @create: (document, callback) ->
-    document = new @ document
+  @execute: (name) ->
+    collection = @_collection
+    queued_operators = @_queued_operators
 
-    document.save (err) ->
-      callback.apply document, [err, document]
+    if collection
+      return ->
+        collection[name].apply collection, arguments
+    else
+      return ->
+        queued_operators.push ->
+          collection[name].apply collection, arguments
 
-  # count query, callback
-  # count query, options, callback
-  # count callback
-  # callback(err, count)
-  # callback.this: Model
-  @count: ->
-    @execute('count') @injectCallback arguments
+  @runQueuedOperators: ->
+    if @_queue_started
+      return
 
-  # find query, callback
-  # find query, options, callback
-  # find callback
-  # callback(err, documents)
-  # callback.this: Model
-  @find: ->
-    self = @
+    extend @,
+      _queue_started: true
+      _collection: @getCollection()
 
-    @execute('find') @injectCallback arguments, (err, cursor) ->
-      return @callback err if err
+    until isEmpty @_queued_operators
+      @_queued_operators.shift()()
 
-      cursor.toArray (err, documents) =>
-        @callback err, self.buildDocument documents
-
-  # findOne query, callback
-  # findOne query, options, callback
-  # findOne callback
-  # callback(err, document)
-  # callback.this: Model
-  @findOne: ->
-    @execute('findOne') @injectCallback arguments
-
-  # findById id, callback
-  # findById id, options, callback
-  # findById callback
-  # callback(err, document)
-  # callback.this: Model
-  @findById: (id) ->
-    try
-      arguments[0] = _id: ObjectID id
-      @findOne.apply @, arguments
-    catch err
-      callback = _.last arguments
-      callback err if _.isFunction callback
-
-  # findOneAndUpdate query, updates, options, callback
-  # findOneAndUpdate query, updates, callback
-  # options.sort
-  # options.new: default to true
-  # callback(err, document)
-  # callback.this: Model
-  @findOneAndUpdate: (query, updates, options, _callback) ->
-    addVersionForUpdates updates
-    self = @
-
-    callback = _.last @injectCallback arguments, (err, document) ->
-      @callback err, self.buildDocument document
-
-    unless _callback
-      options = {new: true, sort: []}
-
-    @execute('findAndModify') [query, options.sort, updates, options, callback]
-
-  # findByIdAndUpdate id, update, options, callback
-  # findByIdAndUpdate id, update, callback
-  # options.new: default to true
-  # callback(err, document)
-  # callback.this: Model
-  @findByIdAndUpdate: (id) ->
-    try
-      arguments[0] = _id: ObjectID id
-      @findOneAndUpdate.apply @, arguments
-    catch err
-      callback = _.last arguments
-      callback err if _.isFunction callback
-
-  # findOneAndRemove query, options, callback
-  # findOneAndRemove query, callback
-  # options.sort
-  # callback(err, document)
-  # callback.this: Model
-  @findOneAndRemove: (query, options, _callback) ->
-    self = @
-
-    callback = _.last @injectCallback arguments, (err, document) ->
-      @callback err, self.buildDocument document
-
-    unless _callback
-      options = {sort: []}
-
-    @execute('findAndRemove') [query, options.sort, options, callback]
-
-  # findByIdAndRemove id, options, callback
-  # findByIdAndRemove id, callback
-  # options.sort
-  # callback(err, document)
-  # callback.this: Model
-  @findByIdAndRemove: (id) ->
-    try
-      arguments[0] = _id: ObjectID id
-      @findOneAndRemove.apply @, arguments
-    catch err
-      callback = _.last arguments
-      callback err if _.isFunction callback
-
-  # update query, updates, callback
-  # update query, updates, options, callback
-  # callback(err, result)
-  # callback.this: Model
-  @update: (query, updates) ->
-    addVersionForUpdates updates
-    @execute('update') arguments
-
-  # remove query, callback
-  # remove query, options, callback
-  # callback(err, result)
-  # callback.this: Model
-  @remove: ->
-    @execute('remove') arguments
-
-  # private
   @injectCallback: (args, callback) ->
     args = _.toArray args
-    original = args[args.length - 1]
+    _callback = args[args.length - 1]
     self = @
 
     callback ?= ->
       @callback.apply @, arguments
 
-    if _.isFunction original
+    if _.isFunction _callback
       next = ->
         callback.apply
           callback: ->
-            original.apply self, arguments
+            _callback.apply self, arguments
         , arguments
 
       args[args.length - 1] = (err, document) =>
-        next err, @buildDocument document
+        next err, @transform document
 
     return args
 
-  # private
-  @execute: (name) ->
-    if @_collection
-      return (args) =>
-        @_collection[name].apply @_collection, args
-    else
-      return (args) =>
-        @_queued_operators.push =>
-          @_collection[name].apply @_collection, args
-
-  # return: Collection
   @getCollection: ->
     return @_mabolo.db?.collection @_options.collection_name
 
-  # private
-  @runQueuedOperators: ->
-    if @_queue_started
-      return
-
-    _.extend @,
-      _queue_started: true
-      _collection: @getCollection()
-
-    until _.isEmpty @_queued_operators
-      @_queued_operators.shift()()
-
-  # buildDocument document
-  # buildDocument documents
-  @buildDocument: (document) ->
+  @transform: (document) ->
     if document?.cursorId?._bsontype
       return document
 
@@ -206,6 +78,88 @@ class Model
 
     else
       return document
+
+  @create: (document, callback) ->
+    document = new @ document
+
+    document.save (err) ->
+      callback.call document, err, document
+
+  @ensureIndex: ->
+    @execute('ensureIndex').apply null, arguments
+
+  @aggregate: ->
+    @execute('aggregate').apply null, arguments
+
+  @count: ->
+    @execute('count').apply null, @injectCallback arguments
+
+  @find: ->
+    self = @
+
+    @execute('find').apply null, @injectCallback arguments, (err, cursor) ->
+      if err
+        @callback err
+      else
+        cursor.toArray (err, documents) =>
+          @callback err, self.transform documents
+
+  @findOne: ->
+    @execute('findOne').apply null, @injectCallback arguments
+
+  @findById: (id) ->
+    try
+      arguments[0] = _id: ObjectID id
+      @findOne.apply @, arguments
+    catch err
+      (_.last arguments) err
+
+  @findOneAndUpdate: (query, updates, options, _callback) ->
+    addVersionForUpdates updates
+    self = @
+
+    callback = _.last @injectCallback arguments, (err, document) ->
+      @callback err, self.transform document
+
+    unless _callback
+      options =
+        new: true
+        sort: null
+
+    @execute('findAndModify') query, options.sort, updates, options, callback
+
+  @findByIdAndUpdate: (id) ->
+    try
+      arguments[0] = _id: ObjectID id
+      @findOneAndUpdate.apply @, arguments
+    catch err
+      (_.last arguments) err
+
+  @findOneAndRemove: (query, options, _callback) ->
+    self = @
+
+    callback = _.last @injectCallback arguments, (err, document) ->
+      @callback err, self.transform document
+
+    unless _callback
+      options =
+        sort: null
+
+    @execute('findAndRemove') query, options.sort, options, callback
+
+  @findByIdAndRemove: (id) ->
+    try
+      arguments[0] = _id: ObjectID id
+      @findOneAndRemove.apply @, arguments
+    catch err
+      (_.last arguments) err
+
+  @update: (query, updates) ->
+    addVersionForUpdates updates
+    @execute('update').apply null, arguments
+
+  @remove: ->
+    @execute('remove').apply null, arguments
 
   constructor: (document) ->
     Object.defineProperties @,
@@ -351,7 +305,7 @@ class Model
 
         _callback.call @, err
 
-      model.execute('insert') [document, callback]
+      model.execute('insert').apply @, [document, callback]
 
   # modifier(commit(err))
   # modifier.this: document

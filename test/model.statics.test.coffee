@@ -34,9 +34,9 @@ describe 'model.statics', ->
     it 'getCollection', ->
       User.getCollection().constructor.name.should.be.equal 'Collection'
 
-  describe 'Model.buildDocument', ->
-    it 'buildDocument', ->
-      User.buildDocument(
+  describe 'Model.transform', ->
+    it 'transform', ->
+      User.transform(
         username: 'orzfly'
       ).should.be.instanceOf User
 

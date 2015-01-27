@@ -1,16 +1,17 @@
 ## Mabolo
 Just a simple wrapper of mongodb api.
 
-> 这个东西还是非常好的嘛！—— Master Yeechan
-
+> 这个东西还是非常好的嘛！—— Master Yeechan  
 > 和 Mongoose 各有千秋。—— orzFly
 
-### Connect to MongoDB
+### Basic usages
+
+Connect to MongoDB:
 
     Mabolo = require 'mabolo'
     mabolo = new Mabolo 'mongodb://localhost/test'
 
-### Create Model
+Create Model:
 
     User = mabolo.model 'User',
       username:
@@ -25,23 +26,147 @@ Define model methods and instance methods:
     User::getName = ->
       return @username
 
+Create user and save to MongoDB:
+
+    user = new User
+      username: 'jysperm'
+
+    user.save (err) ->
+      console.log @_id
+
+Mabolo will queue your operators before connecting to MongoDB.
+
+Or use `User.create`:
+
+      User.create
+        username: 'jysperm'
+      , (err, user) ->
+        console.log user._id
+
+Find users from MongoDB:
+
+    User.find {}, (err, users) ->
+      console.log users[0].username
+
+`User.find` will callback with array of data, instead of a Cursor.
+
+Modify exists document atomically:
+
+    user.modify (commit) ->
+      @name = 'jysperm'
+      commit()
+    , (err) ->
+      # ...
+
+The document will rollback to latest version if validating fail or `commit` received an err.
+
 ### Built-in methods
 
 Model Methods:
 
-* Model.create
-* Model.count
-* Model.find
-* Model.findOne
-* Model.findById
-* Model.findOneAndUpdate
-* Model.findByIdAndUpdate
-* Model.findOneAndRemove
-* Model.findByIdAndRemove
-* Model.update
-* Model.remove
-* Model.getCollection
-* Model.buildDocument
+* getCollection
+
+        Model.getCollection()
+
+    * return: `Collection` of `node-mongodb-native`
+
+* transform
+
+        Model.transform document
+        Model.transform documents
+
+* create
+
+        Model.create document, callback
+
+    * document: `object`
+    * callback: `(err, document) ->`
+    * callback@: `document`
+
+* ensureIndex
+
+        Model.ensureIndex fields, [options], callback
+
+* aggregate
+
+        Model.aggregate commands, [options], callback
+
+* count
+
+        Model.count query, [options], callback
+        Model.count callback
+
+    * callback: `(err, count) ->`
+    * callback@: `Model`
+
+* find
+
+        Model.find query, [options], callback
+        Model.find callback
+
+    * callback: `(err, documents) ->`
+    * callback@: `Model`
+
+* findOne
+
+        Model.findOne query, [options], callback
+        Model.find callback
+
+    * callback: `(err, document) ->`
+    * callback@: `Model`
+
+* findById
+
+        Model.findById id, [options], callback
+
+    * callback: `(err, document) ->`
+    * callback@: `Model`
+
+* findOneAndUpdate
+
+        Model.findOneAndUpdate query, updates, [options], callback
+
+    * options.sort: `{field: -1}`
+    * options.new: default `true`
+    * callback: `(err, document) ->`
+    * callback@: `Model`
+
+* findByIdAndUpdate
+
+        Model.findByIdAndUpdate id, updates, [options], callback
+
+    * options.new: default `true`
+    * callback: `(err, document) ->`
+    * callback@: `Model`
+
+* findOneAndRemove
+
+        Model.findOneAndRemove query, [options], callback
+
+    * options.sort: `{field: -1}`
+    * callback: `(err, document) ->`
+    * callback@: `Model`
+
+* findByIdAndRemove
+
+        Model.findByIdAndRemove id, [options], callback
+
+    * callback: `(err, document) ->`
+    * callback@: `Model`
+
+* update
+
+        Model.update query, updates, [options], callback
+
+    * callback: `(err, result) ->`
+    * callback@: `Model`
+
+* remove
+
+        Model.remove query, [options], callback
+
+    * callback: `(err, result) ->`
+    * callback@: `Model`
 
 Instance Methods:
 
@@ -51,28 +176,6 @@ Instance Methods:
 * document.modify
 * document.remove
 * document.validate
-
-### Create user and save to MongoDB
-Mabolo will queue your operators before connecting to MongoDB.
-
-    user = new User
-      username: 'jysperm'
-
-    user.save (err) ->
-      console.log @_id
-
-Or use `User.create`:
-
-    User.create
-      username: 'jysperm'
-    , (err, user) ->
-      console.log user._id
-
-### Find users from MongoDB
-`User.find` will callback with array of data, instead of a Cursor.
-
-    User.find {}, (err, users) ->
-      console.log users[0].username
 
 ### Default value for field
 
@@ -126,16 +229,6 @@ Multi-validator:
 
 `character` and `length` will be included in error message.
 
-### Modify exists document atomically
-
-    user.modify (commit) ->
-      @name = 'jysperm'
-      commit()
-    , (err) ->
-      # ...
-
-The document will rollback to latest version if validating fail or `commit` received an err.
-
 ### Embedded Model
 
     Token = mabolo.model 'Token',
@@ -177,5 +270,6 @@ Only following methods is available in sub-Model instance:
 
 ### Todo list
 
+* Validating a path of document only
 * Support reference relationship between models
 * Define database indexs
