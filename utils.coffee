@@ -1,5 +1,6 @@
 {ObjectID} = require 'mongodb'
 crypto = require 'crypto'
+_ = require 'underscore'
 
 exports.pass = pass = ->
 
@@ -38,10 +39,10 @@ exports.dotPick = (object, keys) ->
 exports.randomVersion = randomVersion = ->
   return crypto.pseudoRandomBytes(4).toString 'hex'
 
-exports.isModel = (value) ->
+exports.isModel = isModel = (value) ->
   return value?._schema
 
-exports.isEmbedded = (value) ->
+exports.isEmbedded = exports.isDocument = (value) ->
   return value?._path
 
 exports.isEmbeddedDocument = (value) ->
@@ -49,6 +50,45 @@ exports.isEmbeddedDocument = (value) ->
 
 exports.isEmbeddedArray = (value) ->
   return value?._path and value._index
+
+exports.isInstanceOf = (Type, value) ->
+  switch Type
+    when String
+      return _.isString value
+
+    when Number
+      return _.isNumber value
+
+    when Date
+      return _.isDate value
+
+    when Boolean
+      return _.isBoolean value
+
+    else
+      return value instanceof Type
+
+exports.forEachPath = (model, document, iterator) ->
+  for path, definition of model._schema
+    value = dotGet document, path
+
+    it =
+      dotSet: (value) ->
+        dotSet document, path, value
+
+      isEmbeddedArrayPath: ->
+        return _.isArray definition
+
+      getEmbeddedArrayModel: ->
+        return _.first definition
+
+      isEmbeddedDocumentPath: ->
+        return isModel definition.type
+
+      getEmbeddedDocumentModel: ->
+        return definition.type
+
+    iterator path, value, definition, it
 
 exports.addVersionForUpdates = (updates) ->
   is_atom_op = _.every _.keys(updates), (key) ->

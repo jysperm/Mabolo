@@ -4,6 +4,10 @@ Just a simple wrapper of mongodb api.
 > 这个东西还是非常好的嘛！—— Master Yeechan  
 > 和 Mongoose 各有千秋。—— orzFly
 
+![Travis-CI](https://img.shields.io/travis/jysperm/Mabolo.svg?style=flat-square)
+![NPM Version](https://img.shields.io/npm/v/mabolo.svg?style=flat-square)
+![NPM Downloads](https://img.shields.io/npm/dm/mabolo.svg?style=flat-square)
+
 ### Basic usages
 
 Connect to MongoDB:
@@ -14,8 +18,7 @@ Connect to MongoDB:
 Create Model:
 
     User = mabolo.model 'User',
-      username:
-        type: String
+      username: String
 
 Define model methods and instance methods:
 
@@ -26,7 +29,7 @@ Define model methods and instance methods:
     User::getName = ->
       return @username
 
-Create user and save to MongoDB:
+Create doucment and save to MongoDB:
 
     user = new User
       username: 'jysperm'
@@ -38,14 +41,14 @@ Mabolo will queue your operators before connecting to MongoDB.
 
 Or use `User.create`:
 
-      User.create
-        username: 'jysperm'
-      , (err, user) ->
-        console.log user._id
+    User.create
+      username: 'jysperm'
+    , (err, user) ->
+      console.log user._id
 
-Find users from MongoDB:
+Find documents from MongoDB:
 
-    User.find {}, (err, users) ->
+    User.find (err, users) ->
       console.log users[0].username
 
 `User.find` will callback with array of data, instead of a Cursor.
@@ -56,11 +59,95 @@ Modify exists document atomically:
       @name = 'jysperm'
       commit()
     , (err) ->
-      # ...
 
 The document will rollback to latest version if validating fail or `commit` received an err.
 
+Default value for field:
+
+    User = mabolo.model 'User',
+      full_name:
+        default: 'none'
+
+Multi-level path:
+
+    User = mabolo.model 'User',
+      'name.full':
+        default: 'none'
+
+Define built-in Validator for field
+
+    User = mabolo.model 'User',
+      username:
+        type: String
+        enum: ['tomato', 'potato']
+        regex: /^[a-z]{3,8}$/
+        required: true
+
+Define your own validator:
+
+    User = mabolo.model 'User',
+      username:
+        validator: (username) ->
+          return /^[a-z]{3,8}$/.test username
+
+Or asynchronous validator:
+
+    User = mabolo.model 'User',
+      username:
+        validator: fs.exists
+
+Multi-validator:
+
+    User = mabolo.model 'User',
+      username:
+        validator:
+          character: (username) -> /^[a-z]+$/.test username
+          length: (username) -> 3 < username.length < 8
+
+`character` and `length` will be included in error message.
+
 ### Built-in methods
+
+Mabolo Methods:
+
+* constructor
+
+        new Mabolo()
+        new Mabolo 'mongodb://localhost/test'
+
+* connect
+
+        mabolo.connect uri, [callback]
+
+    * callback: `(err, db)` ->
+
+* model
+
+        mabolo.model name, schema, [options]
+
+    * name: a camelcase model name, like `Account`
+    * schema:
+
+        * type: `String`, `Number`, `Date`, `Boolean`, `mabolo.ObjectID`
+        * default: value or `Function`
+        * enum: `Array` of values
+        * regex: `RegExp`
+        * required: `true` or `false`
+        * validator:
+
+            * function: `->`
+            * array of function: `[->, ->]`
+            * object of function: `{a: ->, b: ->}`
+
+            function:
+
+            * synchronous, return err if fail: `(value) ->`
+            * asynchronous, callback err if fail: `(value, callback) ->`
+
+    * options:
+
+        * collection_name: overwrite default collection name
+        * strict_pick: only store defined fields to database, default `true`
 
 Model Methods:
 
@@ -74,6 +161,8 @@ Model Methods:
 
         Model.transform document
         Model.transform documents
+
+    * return: `document` or `documents`
 
 * create
 
@@ -170,64 +259,13 @@ Model Methods:
 
 Instance Methods:
 
-* document.toObject
-* document.update
-* document.save
-* document.modify
-* document.remove
-* document.validate
+* constructor
 
-### Default value for field
+        new Model document
 
-    User = mabolo.model 'User',
-      full_name:
-        default: 'none'
+* transformSubDocuments
 
-* default: default value of this field
-
-Multi-level path:
-
-    User = mabolo.model 'User',
-      'name.full':
-        default: 'none'
-
-### Define Validator for field
-
-Built-in validator:
-
-    User = mabolo.model 'User',
-      username:
-        type: String
-        enum: ['tomato', 'potato']
-        regex: /^[a-z]{3,8}$/
-        required: true
-
-* type: `String`, `Number`, `Date`, `Boolean`, `mabolo.ObjectID`
-
-    And `Object` meaning that no additional validation, same with `null`
-
-Define your own validator:
-
-    User = mabolo.model 'User',
-      username:
-        validator: (username) ->
-          return /^[a-z]{3,8}$/.test username
-
-Or asynchronous validator:
-
-    User = mabolo.model 'User',
-      username:
-        validator: fs.exists
-
-Multi-validator:
-
-    User = mabolo.model 'User',
-      username:
-        validator:
-          character: (username) -> /^[a-z]+$/.test username
-          length: (username) -> 3 < username.length < 8
-
-`character` and `length` will be included in error message.
+        document.transformSubDocuments()
 
 ### Embedded Model
 
@@ -270,6 +308,5 @@ Only following methods is available in sub-Model instance:
 
 ### Todo list
 
-* Validating a path of document only
+* Benchmark tests
 * Support reference relationship between models
-* Define database indexs

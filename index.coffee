@@ -4,15 +4,15 @@
 async = require 'async'
 _ = require 'underscore'
 
-{extend, isEmpty} = _
+utils = require './utils'
 
-{pass, dotGet, dotSet, dotPick, randomVersion, addVersionForUpdates} = require './utils'
-{formatValidators, isTypeOf, isModel, isEmbedded, isEmbeddedDocument} = require './utils'
-{isEmbeddedArray} = require './utils'
+{pass, dotGet, dotSet, dotPick, randomVersion, addVersionForUpdates} = utils
+{formatValidators, isTypeOf, isModel, isEmbedded, isEmbeddedDocument} = utils
+{isEmbeddedArray, forEachPath, isDocument, isInstanceOf} = utils
 
 class Model
   @initialize: (options) ->
-    extend @, options,
+    _.extend @, options,
       _collection: null
       _queued_operators: []
 
@@ -35,11 +35,11 @@ class Model
     if @_queue_started
       return
 
-    extend @,
+    _.extend @,
       _queue_started: true
       _collection: @getCollection()
 
-    until isEmpty @_queued_operators
+    until _.isEmpty @_queued_operators
       @_queued_operators.shift()()
 
   @injectCallback: (args, callback) ->
@@ -187,44 +187,40 @@ class Model
     unless @__v
       @__v = randomVersion()
 
-    @buildSubDocuments()
+    @transformSubDocuments()
 
-  buildSubDocuments: ->
+  transformSubDocuments: ->
     model = @constructor
-    schema = model._schema
 
-    for path, definition of schema
-      value = dotGet @, path
+    forEachPath model, @, (path, value, definition, it) ->
+      if it.isEmbeddedArrayPath()
+        if _.isUndefined value
+          return it.dotSet []
 
-      if _.isArray definition
-        if value == undefined
-          dotSet @, path, []
-          continue
+        SubModel = it.getEmbeddedArrayModel()
 
-        SubModel = _.first definition
+        unless isModel SubModel
+          return
 
-        unless SubModel._schema
-          continue
-
-        dotSet @, path, _.map value, (value, index) =>
-          if value._path
+        it.dotSet _.map value, (value, index) =>
+          if isInstanceOf SubModel, value
             return value
+          else
+            return new SubModel _.extend value,
+              _parent: @
+              _path: path
+              _index: index
 
-          return sud_document = new SubModel _.extend value,
-            _parent: @
-            _path: path
-            _index: index
+      else if it.isEmbeddedDocumentPath()
+        if value in [null, undefined]
+          return
 
-      else if definition.type?._schema
-        unless _.isObject value
-          continue
+        SubModel = it.getEmbeddedDocumentModel()
 
-        if value?._path
-          continue
+        if isInstanceOf SubModel, value
+          return
 
-        SubModel = definition.type
-
-        dotSet @, path, new SubModel _.extend value,
+        it.dotSet new SubModel _.extend value,
           _parent: @
           _path: path
 
@@ -367,7 +363,7 @@ class Model
   # callback(err)
   # callback.this: document
   validate: (callback) ->
-    @buildSubDocuments()
+    @transformSubDocuments()
 
     error = (path, type, message) =>
       callback.apply @, [new Error "validating fail when `#{path}` #{type} #{message}"]
@@ -476,13 +472,9 @@ module.exports = class Mabolo extends EventEmitter
 
   ObjectID: ObjectID
 
-  # uri: if provided will automatically call `Mabolo.connect`
   constructor: (uri) ->
-    if uri
-      @connect uri
+    @connect uri if uri
 
-  # uri: optional mongodb uri
-  # callback(err, db)
   connect: (uri, callback = ->) ->
     MongoClient.connect uri, (err, db) =>
       if err
@@ -494,12 +486,10 @@ module.exports = class Mabolo extends EventEmitter
 
       callback err, db
 
-  # name: a camelcase model name, like `Account`
-  # schema: schema definition object
-  # options.collection_name: overwrite default collection name
   model: (name, schema, options) ->
     options = _.extend(
       collection_name: lingo.pluralize name.toLowerCase()
+      strict_pick: true
     , options)
 
     class model extends Model
