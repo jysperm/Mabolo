@@ -1,11 +1,8 @@
 mabolo = new Mabolo mongodb_uri
 
 User = mabolo.model 'User',
-  username:
-    type: String
-
-  email:
-    type: String
+  username: String
+  email: String
 
 describe 'model.statics', ->
   jysperm_id = null

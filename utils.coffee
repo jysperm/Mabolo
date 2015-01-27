@@ -42,8 +42,11 @@ exports.randomVersion = randomVersion = ->
 exports.isModel = isModel = (value) ->
   return value?._schema
 
-exports.isEmbedded = exports.isDocument = (value) ->
+exports.isEmbedded = (value) ->
   return value?._path
+
+exports.isDocument = (value) ->
+  return isModel value?.constructor
 
 exports.isEmbeddedDocument = (value) ->
   return value?._path and !value._index
@@ -72,7 +75,16 @@ exports.forEachPath = (model, document, iterator) ->
   for path, definition of model._schema
     value = dotGet document, path
 
+    if definition.type
+      Type = definition.type
+    else if _.isFunction definition
+      Type = definition
+    else
+      Type = null
+
     it =
+      Type: Type
+
       dotSet: (value) ->
         dotSet document, path, value
 
@@ -83,10 +95,10 @@ exports.forEachPath = (model, document, iterator) ->
         return _.first definition
 
       isEmbeddedDocumentPath: ->
-        return isModel definition.type
+        return isModel Type
 
       getEmbeddedDocumentModel: ->
-        return definition.type
+        return Type
 
     iterator path, value, definition, it
 
@@ -110,33 +122,3 @@ exports.formatValidators = (validators) ->
       return validator
 
   return validators
-
-exports.isTypeOf = (Type, value) ->
-  switch Type
-    when String
-      unless _.isString value
-        return 'is string'
-
-    when Number
-      unless _.isNumber value
-        return 'is number'
-
-    when Date
-      unless _.isDate value
-        return 'is date'
-
-    when Boolean
-      unless _.isBoolean value
-        return 'is boolean'
-
-    when ObjectID
-      unless value instanceof ObjectID
-        return 'is objectid'
-
-    when Object
-      pass
-
-    else
-      throw new Error "unknown type #{Type.toString()}}"
-
-  return null

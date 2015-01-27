@@ -55,7 +55,7 @@ describe 'model.validate', ->
         birthday: '1995-11-25'
 
       jysperm.validate (err) ->
-        err.message.should.match /birthday.*is date/
+        err.message.should.match /birthday.*is Date/
         done()
 
     it 'should fail when path not exist', (done) ->
@@ -63,7 +63,7 @@ describe 'model.validate', ->
         username: 'jysperm'
 
       jysperm.validate (err) ->
-        err.message.should.match /age.*is number/
+        err.message.should.match /age.*is Number/
         done()
 
   describe 'enum, regex', ->

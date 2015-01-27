@@ -192,9 +192,9 @@ class Model
   transformSubDocuments: ->
     model = @constructor
 
-    forEachPath model, @, (path, value, definition, it) ->
+    forEachPath model, @, (path, value, definition, it) =>
       if it.isEmbeddedArrayPath()
-        if _.isUndefined value
+        if value == undefined
           return it.dotSet []
 
         SubModel = it.getEmbeddedArrayModel()
@@ -206,10 +206,12 @@ class Model
           if isInstanceOf SubModel, value
             return value
           else
-            return new SubModel _.extend value,
+            a = new SubModel _.extend value,
               _parent: @
               _path: path
               _index: index
+
+            return a
 
       else if it.isEmbeddedDocumentPath()
         if value in [null, undefined]
@@ -224,27 +226,32 @@ class Model
           _parent: @
           _path: path
 
-  # return: Model
   parent: ->
     return @_parent
 
-  # return: object
   toObject: ->
-    result = _.pick.apply @, [@].concat Object.keys @
+    model = @constructor
 
-    for path, definition of @constructor._schema
-      if _.isArray definition
-        if _.first(definition)._schema
-          dotSet result, path, _.map dotGet(result, path), (item) ->
-            return item.toObject()
+    if model._options.strict_pick
+      object = dotPick @, _.keys(model._schema)
+    else
+      object = _.pick.apply null, [@].concat Object.keys @
 
-      else if definition.type?._schema
-        value = dotGet(result, path)
+    forEachPath model, @, (path, value, definition, it) ->
+      if it.isEmbeddedArrayPath()
+        if isModel it.getEmbeddedArrayModel()
+          dotSet object, path, _.map value, (item) ->
+            if isDocument item
+              return item.toObject()
+            else
+              return item
 
-        if value?.toObject
-          dotSet result, path, value.toObject()
+      else if it.isEmbeddedDocumentPath()
+        if isModel it.getEmbeddedDocumentModel()
+          if isDocument value
+            dotSet object, path, value.toObject()
 
-    return result
+    return object
 
   # update updates, options, callback
   # update updates, callback
@@ -265,43 +272,44 @@ class Model
 
     @constructor.findByIdAndUpdate.apply @constructor, args
 
-  # callback(err)
-  # callback.this: document
-  save: (_callback) ->
+  save: (callback) ->
     model = @constructor
 
     if !@_isNew and @_isRemoved
       throw new Error 'Cant save exists document'
 
     if @_parent
-      throw new Error 'Cant save sub-document'
+      throw new Error 'Cant save embedded document'
 
-    for path, definition of model._schema
-      {default: default_value} = definition
+    forEachPath model, @, (path, value, definition, it) ->
+      default_value = definition.default
 
-      if dotGet(@, path) == undefined and default_value != undefined
+      if value == undefined and default_value != undefined
         if _.isFunction default_value
           default_value = default_value()
         else
           default_value = _.clone default_value
 
-        dotSet @, path, default_value
+        it.dotSet default_value
 
-    document = dotPick @, _.keys(model._schema)
+    if model._options.strict_pick
+      document = dotPick @, _.keys model._schema
+    else
+      document = _.pick.apply null, [@].concat Object.keys @
+
     document.__v = @__v
 
     @validate (err) ->
-      return _callback err if err
+      return callback err if err
 
-      callback = (err, documents) =>
+      model.execute('insert') document, (err, documents) =>
         document = documents?[0]
 
         if document
+          # TODO: multi-level version of _.extend
           _.extend @, document
 
-        _callback.call @, err
-
-      model.execute('insert').apply @, [document, callback]
+        callback.call @, err
 
   # modifier(commit(err))
   # modifier.this: document
@@ -360,55 +368,44 @@ class Model
       err = null if err == FINISHED
       callback.apply @, [err]
 
-  # callback(err)
-  # callback.this: document
   validate: (callback) ->
+    model = @constructor
     @transformSubDocuments()
 
+    is_errored = false
+
     error = (path, type, message) =>
-      callback.apply @, [new Error "validating fail when `#{path}` #{type} #{message}"]
+      is_errored = true
+      callback.call @, new Error "validating fail on `#{path}` #{type} #{message}"
 
     sub_documents = []
     async_validators = []
 
-    # Built-in
-    for path, definition of @constructor._schema
-      value = dotGet @, path
-
-      if value == undefined and !definition.required
-        continue
+    forEachPath model, @, (path, value, definition, it) ->
+      if value in [null, undefined] and !definition.required
+        return
 
       typeError = (message) ->
         error path, 'type', message
 
-      if _.isArray definition
-        Type = _.first definition
+      if it.isEmbeddedArrayPath()
+        Type = it.getEmbeddedArrayModel()
 
         for item in value
-          if Type._schema
-            unless item instanceof Type
-              return typeError 'is array of ' + Type._name
-
-            sub_documents.push item
-
+          if isInstanceOf Type, item
+            if isDocument item
+              sub_documents.push item
           else
-            err = isTypeOf Type, item
-            return typeError err if err
+            return typeError "is array of #{Type._name ? Type.name}"
 
-      if definition.type
-        if definition.type._schema
-          if value
-            unless value instanceof definition.type
-              return typeError 'is ' + definition.type._name
+        return
 
+      if it.Type
+        if isInstanceOf it.Type, value
+          if it.isEmbeddedDocumentPath()
             sub_documents.push value
-
-          else if definition.required
-            return typeError 'is ' + definition.type._name
-
         else
-          err = isTypeOf definition.type, value
-          return typeError err if err
+          return typeError "is #{it.Type._name ? it.Type.name}"
 
       if definition.enum
         unless value in definition.enum
@@ -418,7 +415,6 @@ class Model
         unless definition.regex.test value
           return error path, 'regex', "match #{definition.regex}"
 
-      # sync validator
       if definition.validator
         validators = formatValidators definition.validator
 
@@ -429,7 +425,7 @@ class Model
           unless validator.apply @, [value]
             return error path, 'validator(sync)', validator.validator_name
 
-        async_validators = async_validators.concat _.filter validators, (validator) ->
+        async_validators = _.union async_validators, _.filter validators, (validator) ->
           unless validator.length == 2
             return false
 
@@ -437,19 +433,20 @@ class Model
             value: value
             path: path
 
+    if is_errored
+      return
+
     async.parallel [
-      # sub-Model
       (callback) ->
         async.each sub_documents, (sub_document, callback) ->
           sub_document.validate callback
         , callback
 
-      # async validator
       (callback) ->
         async.each async_validators, (validator, callback) ->
           validator validator.value, (err) ->
             if err
-              err = new Error "validating fail when `#{path}` validator(async) #{err}"
+              err = new Error "validating fail on `#{validator.path}` validator(async) #{err}"
 
             callback err
 
@@ -499,7 +496,6 @@ module.exports = class Mabolo extends EventEmitter
       _name: name
       _schema: schema
       _options: options
-      methods: model.prototype
 
     @models[name] = model
 

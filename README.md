@@ -267,29 +267,50 @@ Instance Methods:
 
         document.transformSubDocuments()
 
-### Embedded Model
+* parent
+
+        document.parent()
+
+    return: parent `document`
+
+* toObject
+
+        document.toObject()
+
+    return: `object`
+
+* save
+
+        document.save callback
+
+    callback: `(err) ->`
+    callback@: `document`
+
+* validate
+
+        document.validate callback
+
+    callback: `(err) ->`
+    callback@: `document`
+
+### Embedded Document
 
     Token = mabolo.model 'Token',
-      code:
-        type: String
+      code: String
 
     User = mabolo.model 'User',
-      username:
-        type: String
-
-      last_token:
-        type: Token
-
+      username: String
+      last_token: Token
       friends_id: [mabolo.ObjectID]
       tokens: [Token]
       tags: [String]
 
-* Every sub-Model has a `_id` and `__v`
-* Validators of sub-Model will be run first
-* Sub-Model will be create when parent-Model created
-* `String`, `Number`, `Date`, `Boolean`, `mabolo.ObjectID` also can be used as an sub-Model
+* Every embedded document has a `_id` and `__v`
+* Validators of embedded document will be run after parent document
+* Embedded document will be create when parent document created
+* `String`, `Number`, `Date`, `ObjectID` also can be used as an embedded Model
 
-You can use `parent()` to get instance of parent-Model:
+You can use `parent()` to get parent document:
 
     Token::revoke = (callback) ->
       @parent().update
@@ -298,9 +319,8 @@ You can use `parent()` to get instance of parent-Model:
             code: @code
       , callback
 
-Only following methods is available in sub-Model instance:
+Following methods is also available in embedded document:
 
-* toObject
 * update
 * modify
 * remove
