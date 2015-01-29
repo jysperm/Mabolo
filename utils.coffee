@@ -42,9 +42,6 @@ exports.randomVersion = randomVersion = ->
 exports.isModel = isModel = (value) ->
   return value?._schema
 
-exports.isEmbedded = (value) ->
-  return value?._path
-
 exports.isDocument = (value) ->
   return isModel value?.constructor
 
@@ -111,6 +108,26 @@ exports.addVersionForUpdates = (updates) ->
     updates.$set['__v'] ?= randomVersion()
   else
     updates['__v'] ?= randomVersion()
+
+exports.addPrefixForUpdates = addPrefixForUpdates = (updates, document) ->
+  paths = []
+
+  for k, v of updates
+    if k[0] == '$'
+      if _.isObject(v) and !_.isArray(v)
+        addPrefixForUpdates v, document
+
+    else
+      paths.push k
+
+  if document._index
+    prefix = "#{document._path}.$."
+  else
+    prefix = "#{document._path}."
+
+  for k in paths
+    updates[prefix + k] = updates[k]
+    delete updates[k]
 
 exports.formatValidators = (validators) ->
   if _.isFunction validators

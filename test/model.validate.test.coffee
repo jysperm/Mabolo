@@ -173,5 +173,5 @@ describe 'model.validate', ->
         username: 'index.coffee'
 
       jysperm.validate (err) ->
-        err.message.should.match /username.*async/
+        err.message.should.match /username/
         done()

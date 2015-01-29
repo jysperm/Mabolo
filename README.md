@@ -74,7 +74,7 @@ Multi-level path:
       'name.full':
         default: 'none'
 
-Define built-in Validator for field
+Define built-in validator for field
 
     User = mabolo.model 'User',
       username:
@@ -105,6 +105,37 @@ Multi-validator:
           length: (username) -> 3 < username.length < 8
 
 `character` and `length` will be included in error message.
+
+### Embedded Document
+
+    Token = mabolo.model 'Token',
+      code: String
+
+    User = mabolo.model 'User',
+      username: String
+      last_token: Token
+      tokens: [Token]
+      tags: [String]
+
+* Every embedded document has a `_id` and `__v`
+* Validators of embedded document will be run after parent document
+* Embedded document will be create when parent document created
+* `String`, `Number`, `Date`, `ObjectID` also can be used as an embedded Model
+
+You can use `parent()` to get parent document:
+
+    Token::revoke = (callback) ->
+      @parent().update
+        $pull:
+          tokens:
+            code: @code
+      , callback
+
+Following methods is also available in embedded document:
+
+* update
+* modify
+* remove
 
 ### Built-in methods
 
@@ -271,62 +302,48 @@ Instance Methods:
 
         document.parent()
 
-    return: parent `document`
+    * return: parent `document`
 
 * toObject
 
         document.toObject()
 
-    return: `object`
+    * return: `object`
+
+* update
+
+        document.update updates, [options], callback
+        document.embedded.update updates, [options], callback
+
+    * options.new: default `true`
+    * callback: `(err) ->`
+    * callback@: `document`
 
 * save
 
         document.save callback
 
-    callback: `(err) ->`
-    callback@: `document`
+    * callback: `(err) ->`
+    * callback@: `document`
 
 * validate
 
         document.validate callback
+        document.embedded.validate callback
 
-    callback: `(err) ->`
-    callback@: `document`
+    * callback: `(err) ->`
+    * callback@: `document`
 
-### Embedded Document
-
-    Token = mabolo.model 'Token',
-      code: String
-
-    User = mabolo.model 'User',
-      username: String
-      last_token: Token
-      friends_id: [mabolo.ObjectID]
-      tokens: [Token]
-      tags: [String]
-
-* Every embedded document has a `_id` and `__v`
-* Validators of embedded document will be run after parent document
-* Embedded document will be create when parent document created
-* `String`, `Number`, `Date`, `ObjectID` also can be used as an embedded Model
-
-You can use `parent()` to get parent document:
-
-    Token::revoke = (callback) ->
-      @parent().update
-        $pull:
-          tokens:
-            code: @code
-      , callback
-
-Following methods is also available in embedded document:
-
-* update
-* modify
 * remove
-* validate
+
+        document.remove callback
+        document.embedded.remove callback
+
+    * callback: `(err, result) ->`
 
 ### Todo list
 
+* Type casts automatically
+* Prevent injection
 * Benchmark tests
-* Support reference relationship between models
+* Reference relationship between models

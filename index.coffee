@@ -7,7 +7,7 @@ _ = require 'underscore'
 utils = require './utils'
 
 {pass, dotGet, dotSet, dotPick, randomVersion, addVersionForUpdates} = utils
-{formatValidators, isTypeOf, isModel, isEmbedded, isEmbeddedDocument} = utils
+{formatValidators, isModel, isEmbeddedDocument, addPrefixForUpdates} = utils
 {isEmbeddedArray, forEachPath, isDocument, isInstanceOf} = utils
 
 class Model
@@ -445,8 +445,10 @@ class Model
       (callback) ->
         async.each async_validators, (validator, callback) ->
           validator validator.value, (err) ->
+            {path, validator_name: name} = validator
+
             if err
-              err = new Error "validating fail on `#{validator.path}` validator(async) #{err}"
+              err = new Error "validating fail on `#{path}` #{name} #{err}"
 
             callback err
 
