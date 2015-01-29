@@ -253,11 +253,6 @@ class Model
 
     return object
 
-  # update updates, options, callback
-  # update updates, callback
-  # options.new: default to true
-  # callback(err)
-  # callback.this: document
   update: (updates, options, callback) ->
     # TODO: sub-Model
     args = _.toArray arguments
@@ -311,10 +306,6 @@ class Model
 
         callback.call @, err
 
-  # modifier(commit(err))
-  # modifier.this: document
-  # callback(err)
-  # callback.this: document
   modify: (modifier, callback) ->
     # TODO: sub-Model
     model = @constructor
@@ -457,7 +448,6 @@ class Model
     ], (err) =>
       callback.call @, err
 
-  # callback(err, result)
   remove: (callback) ->
     # TODO: sub-Model
     @_isRemoved = true

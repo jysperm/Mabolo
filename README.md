@@ -120,7 +120,7 @@ Multi-validator:
 * Every embedded document has a `_id` and `__v`
 * Validators of embedded document will be run after parent document
 * Embedded document will be create when parent document created
-* `String`, `Number`, `Date`, `ObjectID` also can be used as an embedded Model
+* `String`, `Number`, `Date`, `ObjectID` also can be used as an Model
 
 You can use `parent()` to get parent document:
 
@@ -130,12 +130,6 @@ You can use `parent()` to get parent document:
           tokens:
             code: @code
       , callback
-
-Following methods is also available in embedded document:
-
-* update
-* modify
-* remove
 
 ### Built-in methods
 
@@ -313,7 +307,6 @@ Instance Methods:
 * update
 
         document.update updates, [options], callback
-        document.embedded.update updates, [options], callback
 
     * options.new: default `true`
     * callback: `(err) ->`
@@ -323,6 +316,14 @@ Instance Methods:
 
         document.save callback
 
+    * callback: `(err) ->`
+    * callback@: `document`
+
+* modify
+
+        document.modify modifier, callback
+
+    * commit: `(err) ->`
     * callback: `(err) ->`
     * callback@: `document`
 
@@ -337,7 +338,7 @@ Instance Methods:
 * remove
 
         document.remove callback
-        document.embedded.remove callback
+        [TODO] document.embedded.remove callback
 
     * callback: `(err, result) ->`
 
