@@ -15,9 +15,7 @@
     }
   ],
   "scripts": {
-    "test": "COV_TEST=true ./node_modules/.bin/mocha --compilers coffee:coffee-script/register --require test/env --reporter node_modules/mocha-reporter-cov-summary -- test/*.test.coffee",
-    "test-only": "./node_modules/.bin/mocha -b --compilers coffee:coffee-script/register --require test/env -- test/*.test.coffee",
-    "test-cov-html": "COV_TEST=true ./node_modules/.bin/mocha --compilers coffee:coffee-script/register --require test/env --reporter html-cov -- test/*.test.coffee > coverage-reporter.html"
+    "test": "./node_modules/.bin/gulp test"
   },
   "dependencies": {
     "async": "^0.9.0",
@@ -32,6 +30,7 @@
     "coffee-coverage": "0.4.2",
     "endokken": "^0.1.0",
     "gulp": "^3.8.11",
+    "gulp-rsync": "^0.0.5",
     "gulp-shell": "^0.3.0",
     "mocha": "^2.0.0",
     "mocha-reporter-cov-summary": "^0.1.0"

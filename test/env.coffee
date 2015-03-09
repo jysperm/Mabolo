@@ -7,7 +7,7 @@ if process.env.COV_TEST == 'true'
   (require 'coffee-coverage').register
     path: 'relative'
     basePath: "#{__dirname}/.."
-    exclude: ['test', 'node_modules', '.git']
+    exclude: ['test', 'docs', 'node_modules', '.git']
 
 _.extend global,
   mongodb_uri: 'mongodb://localhost/mabolo_test'
