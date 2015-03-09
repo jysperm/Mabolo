@@ -98,12 +98,15 @@ class Model
   * `document` {Object}
   * `callback` (optional) {Function} `(err, document) ->`
 
+  return `Promise` `(document) ->`
+
   ###
   @create: (document, callback) ->
     document = new @ document
 
-    document.save (err) ->
-      callback.call document, err, document
+    document.save().then ->
+      return document
+    .nodeify callback
 
   ###
   Public: Transform
@@ -391,20 +394,9 @@ class Model
   @execute: (name) ->
     return =>
       modelOf(@).collection.then (collection) ->
-        Q.defer()
+        deferred = Q.defer()
         collection[name] [(_.toArray arguments)..., deferred.makeNodeResolver()]
         return deferred
-
-  @runQueuedOperators: ->
-    if @_queue_started
-      return
-
-    _.extend @,
-      _queue_started: true
-      _collection: @getCollection()
-
-    until _.isEmpty @_queued_operators
-      @_queued_operators.shift()()
 
   @injectCallback: (args, callback) ->
     args = _.toArray args
@@ -485,28 +477,7 @@ class Model
 
   ###
   toObject: ->
-    model = @constructor
-
-    if model._options.strict_pick
-      object = dotPick @, _.keys(model._schema)
-    else
-      object = _.pick.apply null, [@].concat Object.keys @
-
-    forEachPath model, @, (path, value, definition, it) ->
-      if it.isEmbeddedArrayPath()
-        if isModel it.getEmbeddedArrayModel()
-          dotSet object, path, _.map value, (item) ->
-            if isDocument item
-              return item.toObject()
-            else
-              return item
-
-      else if it.isEmbeddedDocumentPath()
-        if isModel it.getEmbeddedDocumentModel()
-          if isDocument value
-            dotSet object, path, value.toObject()
-
-    return object
+    return toObject @
 
   ###
   Public: Update
@@ -667,41 +638,7 @@ class Model
     return @_parent
 
   transform: ->
-    model = @constructor
-
-    forEachPath model, @, (path, value, definition, it) =>
-      if it.isEmbeddedArrayPath()
-        if value == undefined
-          return it.dotSet []
-
-        SubModel = it.getEmbeddedArrayModel()
-
-        unless isModel SubModel
-          return
-
-        it.dotSet _.map value, (value, index) =>
-          if isInstanceOf SubModel, value
-            return value
-          else
-            a = new SubModel _.extend value,
-              _parent: @
-              _path: path
-              _index: index
-
-            return a
-
-      else if it.isEmbeddedDocumentPath()
-        if value in [null, undefined]
-          return
-
-        SubModel = it.getEmbeddedDocumentModel()
-
-        if isInstanceOf SubModel, value
-          return
-
-        it.dotSet new SubModel _.extend value,
-          _parent: @
-          _path: path
+    transformDocument @
 
 # Public: Mabolo
 module.exports = class Mabolo
@@ -975,6 +912,14 @@ modelOf = (value) ->
 schemaOf = (value) ->
   return modelOf(value)?._schema
 
+typeOfDefinition = (definition) ->
+  if definition.type
+    return definition.type
+  else if _.isFunction definition
+    return definition
+  else
+    return null
+
 typeNameOf = (value) ->
   return value?._name ? value?.name
 
@@ -1007,36 +952,65 @@ isInstanceOf = (Type, value) ->
     else
       return value instanceof Type
 
-forEachPath = (model, document, iterator) ->
-  for path, definition of model._schema
+toObject = (document) ->
+  result = pickDocument document
+
+  for path, definition of schemaOf(document)
     value = dotGet document, path
 
-    if definition.type
-      Type = definition.type
-    else if _.isFunction definition
-      Type = definition
+    # embedded array
+    if _.isArray definition
+      dotSet result, path, value.map (value) ->
+        if isDocument value
+          return value.toObject()
+        else
+          return value
+
+    # embedded model
+    else if isModel typeOfDefinition(definition)
+      if isDocument value
+        dotSet result, path, value.toObject()
+
+  return result
+
+transformDocument = (document) ->
+  for path, definition of schemaOf(document)
+    value = dotGet document, path
+
+    # embedded array
+    if _.isArray definition
+      Type = _.first definition
+
+      if value in [undefined, null]
+        dotSet document, path, []
+
+      else if isModel Type
+        dotSet document, path, value.map (value, index) =>
+          if isInstanceOf Type, value
+            transformDocument value
+            return value
+
+          else
+            return new Type _.extend value,
+              _parent: @
+              _path: path
+              _index: index
+
+    # embedded model
     else
-      Type = null
+      Type = typeOfDefinition definition
 
-    it =
-      Type: Type
+      if value in [undefined, null]
+        continue
 
-      dotSet: (value) ->
-        dotSet document, path, value
+      if isModel Type
+        if isInstanceOf Type, value
+          transformDocument value
 
-      isEmbeddedArrayPath: ->
-        return _.isArray definition
-
-      getEmbeddedArrayModel: ->
-        return _.first definition
-
-      isEmbeddedDocumentPath: ->
-        return isModel Type
-
-      getEmbeddedDocumentModel: ->
-        return Type
-
-    iterator path, value, definition, it
+        else
+          dotSet document, path, new Type _.extend value,
+            _parent: @
+            _path: path
 
 addVersionForUpdates = (updates) ->
   is_atom_op = _.every _.keys(updates), (key) ->
