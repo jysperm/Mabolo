@@ -89,7 +89,7 @@ class Model
   ```
 
   * `document` {Object}
-  * `callback` (optional) {Function}
+  * `callback` (optional) {Function} `(err, document) ->`
 
   ###
   @create: (document, callback) ->
@@ -379,24 +379,14 @@ class Model
       (_.last arguments) err
 
   @initialize: (options) ->
-    _.extend @, options,
-      _collection: null
-      _queued_operators: []
-
-    if @getCollection()
-      @runQueuedOperators()
+    _.extend @, options
 
   @execute: (name) ->
-    collection = @_collection
-    queued_operators = @_queued_operators
-
-    if collection
-      return ->
-        collection[name].apply collection, arguments
-    else
-      return ->
-        queued_operators.push ->
-          collection[name].apply collection, arguments
+    return =>
+      modelOf(@).collection.then (collection) ->
+        Q.defer()
+        collection[name] [(_.toArray arguments)..., deferred.makeNodeResolver()]
+        return deferred
 
   @runQueuedOperators: ->
     if @_queue_started
