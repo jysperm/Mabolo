@@ -811,14 +811,12 @@ class Model
           _parent: @
           _path: path
 
-# Public: ObjectID from node-mongodb-native
-class ObjectID
-
 # Public: Mabolo
-module.exports = class Mabolo extends EventEmitter
-  db: null
+module.exports = class Mabolo
+  connected: Q.defer()
   models: {}
 
+  # Public: ObjectID from node-mongodb-native
   ObjectID: ObjectID
 
   ###
@@ -838,21 +836,18 @@ module.exports = class Mabolo extends EventEmitter
   Public: Connect to MongoDB
 
   * `uri` {String} uri of MongoDB
-  * `callback` (optional) {Function}
+  * `callback` (optional) {Function} `(err, db) ->`
 
-    * `err` {Error}
-    * `db` Db from node-mongodb-native
+  return {Promise} `(db) ->`
   ###
-  connect: (uri, callback = -> ) ->
+  connect: (uri, callback) ->
     MongoClient.connect uri, (err, db) =>
       if err
-        @emit 'error', err
-
+        @connected.reject err
       else
-        @db = db
-        @emit 'connected', db
+        @connected.resolve db
 
-      callback err, db
+    @connected.promise.nodeify callback
 
   ###
   Public: Create a Mabolo Model
@@ -865,7 +860,7 @@ module.exports = class Mabolo extends EventEmitter
     * `enum` (optional) {Array} of values
     * `regex` (optional) {RegExp}
     * `required` (optional) {Boolean}
-    * `validator` (optional) {Function}, {Array} or {Object}
+    * `validator` (optional) {Function} or {Array}
 
   * `options` (optional) {Object}
 
@@ -912,38 +907,16 @@ module.exports = class Mabolo extends EventEmitter
   User = mabolo.model 'User',
     username:
       validator: (username) ->
-        return /^[a-z]{3,8}$/.test username
+        if /^[a-z]{3,8}$/.test username
+          return null
+        else
+          return 'invalid_username'
   ```
-
-  Or asynchronous validator:
-
-  ```coffee
-  User = mabolo.model 'User',
-    username:
-      validator: fs.exists
-  ```
-
-  Multi-validator:
 
   `validator` can be:
 
-  * {Function}
-
-    * synchronous, return err if fail: `(value) ->`
-    * asynchronous, callback err if fail: `(value, callback) ->`
-
+  * {Function} `(value, document) ->` throw a err (Sync) or return `Promise` (Async)
   * {Array} of {Function}
-  * {Object} of {Function}
-
-  ```coffee
-  User = mabolo.model 'User',
-    username:
-      validator:
-        character: (username) -> /^[a-z]+$/.test username
-        length: (username) -> 3 < username.length < 8
-  ```
-
-  `character` and `length` will be included in error message.
 
   ###
   model: (name, schema, options) ->
@@ -955,15 +928,15 @@ module.exports = class Mabolo extends EventEmitter
     class model extends Model
 
     model.initialize
-      _mabolo: @
       _name: name
+      _mabolo: @
       _schema: schema
       _options: options
 
-    @models[name] = model
+      collection: @connected.then (db) ->
+        return db.collection options.collection_name
 
-    @on 'connected', ->
-      model.runQueuedOperators()
+    @models[name] = model
 
     return model
 
