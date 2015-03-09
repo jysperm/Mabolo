@@ -4,6 +4,7 @@
 crypto = require 'crypto'
 async = require 'async'
 _ = require 'underscore'
+Q = require 'q'
 
 ###
 Public: Mabolo Model
@@ -55,16 +56,22 @@ class Model
   ###
   constructor: (document) ->
     Object.defineProperties @,
+      # Does the document query from MongoDB
       _isNew:
         writable: true
+      # Did the document removed from MongoDB
       _isRemoved:
         writable: true
+      # The parent of this document
       _parent:
         writable: true
+      # Path of embedded document or embedded array
       _path:
         writable: true
+      # Index of embedded array
       _index:
         writable: true
+      # Version to prevent conflict
       __v:
         writable: true
 
@@ -79,7 +86,7 @@ class Model
     unless @__v
       @__v = randomVersion()
 
-    @transformSubDocuments()
+    @transform()
 
   ###
   Public: Create
@@ -427,101 +434,20 @@ class Model
   Public: Validate
 
   ```coffee
-  document.validate [callback]
-  document.embedded.validate [callback]
+  document.validate()
+  document.embedded.validate()
+  document.embedded[0].validate()
   ```
 
   * `callback` (optional) {Function} `(err) ->`
 
   ###
   validate: (callback) ->
-    model = @constructor
-    @transformSubDocuments()
+    @transform()
 
-    is_errored = false
-
-    error = (path, type, message) =>
-      is_errored = true
-      callback.call @, new Error "validating fail on `#{path}` #{type} #{message}"
-
-    sub_documents = []
-    async_validators = []
-
-    forEachPath model, @, (path, value, definition, it) ->
-      if value in [null, undefined] and !definition.required
-        return
-
-      typeError = (message) ->
-        error path, 'type', message
-
-      if it.isEmbeddedArrayPath()
-        Type = it.getEmbeddedArrayModel()
-
-        for item in value
-          if isInstanceOf Type, item
-            if isDocument item
-              sub_documents.push item
-          else
-            return typeError "is array of #{Type._name ? Type.name}"
-
-        return
-
-      if it.Type
-        if isInstanceOf it.Type, value
-          if it.isEmbeddedDocumentPath()
-            sub_documents.push value
-        else
-          return typeError "is #{it.Type._name ? it.Type.name}"
-
-      if definition.enum
-        unless value in definition.enum
-          return error path, 'enum', "in [#{definition.enum.join ', '}]"
-
-      if definition.regex
-        unless definition.regex.test value
-          return error path, 'regex', "match #{definition.regex}"
-
-      if definition.validator
-        validators = formatValidators definition.validator
-
-        sync_validators = _.filter validators, (validator) ->
-          return validator.length != 2
-
-        for validator in sync_validators
-          unless validator.apply @, [value]
-            return error path, 'validator(sync)', validator.validator_name
-
-        async_validators = _.union async_validators, _.filter validators, (validator) ->
-          unless validator.length == 2
-            return false
-
-          return _.extend validator,
-            value: value
-            path: path
-
-    if is_errored
-      return
-
-    async.parallel [
-      (callback) ->
-        async.each sub_documents, (sub_document, callback) ->
-          sub_document.validate callback
-        , callback
-
-      (callback) ->
-        async.each async_validators, (validator, callback) ->
-          validator validator.value, (err) ->
-            {path, validator_name: name} = validator
-
-            if err
-              err = new Error "validating fail on `#{path}` #{name} #{err}"
-
-            callback err
-
-        , callback
-
-    ], (err) =>
-      callback.call @, err
+    Q.all _.keys(schemaOf @).map (path) =>
+      return validatePath @, path
+    .nodeify callback
 
   ###
   Public: Save
@@ -534,43 +460,19 @@ class Model
 
   ###
   save: (callback) ->
-    model = @constructor
-
     if !@_isNew and @_isRemoved
-      throw new Error 'Cant save exists document'
+      return Q.reject 'Cant save exists document'
 
     if @_parent
-      throw new Error 'Cant save embedded document'
+      return Q.reject 'Cant save embedded document'
 
-    forEachPath model, @, (path, value, definition, it) ->
-      default_value = definition.default
+    applyDefaultValues @
 
-      if value == undefined and default_value != undefined
-        if _.isFunction default_value
-          default_value = default_value()
-        else
-          default_value = _.clone default_value
-
-        it.dotSet default_value
-
-    if model._options.strict_pick
-      document = dotPick @, _.keys model._schema
-    else
-      document = _.pick.apply null, [@].concat Object.keys @
-
-    document.__v = @__v
-
-    @validate (err) ->
-      return callback err if err
-
-      model.execute('insert') document, (err, documents) =>
-        document = documents?[0]
-
-        if document
-          # TODO: multi-level version of _.extend
-          _.extend @, document
-
-        callback.call @, err
+    @validate().then =>
+      modelOf(@).execute('insert') (pickDocument @)
+    .then ([document]) =>
+      refreshDocument @, document
+    .nodeify callback
 
   ###
   Public: To Object
@@ -764,7 +666,7 @@ class Model
   parent: ->
     return @_parent
 
-  transformSubDocuments: ->
+  transform: ->
     model = @constructor
 
     forEachPath model, @, (path, value, definition, it) =>
