@@ -1,14 +1,9 @@
 {ObjectID, MongoClient} = require 'mongodb'
 {EventEmitter} = require 'events'
 {en: lingo} = require 'lingo'
+crypto = require 'crypto'
 async = require 'async'
 _ = require 'underscore'
-
-utils = require './utils'
-
-{pass, dotGet, dotSet, dotPick, randomVersion, addVersionForUpdates} = utils
-{formatValidators, isModel, isEmbeddedDocument, addPrefixForUpdates} = utils
-{isEmbeddedArray, forEachPath, isDocument, isInstanceOf} = utils
 
 ###
 Public: Mabolo Model
@@ -971,3 +966,239 @@ module.exports = class Mabolo extends EventEmitter
       model.runQueuedOperators()
 
     return model
+
+# Helpers
+
+dotGet = (object, path) ->
+  paths = path.split '.'
+  ref = object
+
+  for key in paths
+    if ref[key] == undefined
+      return undefined
+    else
+      ref = ref[key]
+
+  return ref
+
+dotSet = (object, path, value) ->
+  paths = path.split '.'
+  last_path = paths.pop()
+  ref = object
+
+  for key in paths
+    ref[key] ?= {}
+    ref = ref[key]
+
+  ref[last_path] = value
+
+dotPick = (object, keys) ->
+  result = {}
+
+  for key in keys
+    if dotGet(object, key) != undefined
+      dotSet result, key, dotGet(object, key)
+
+  return result
+
+randomVersion = ->
+  return crypto.pseudoRandomBytes(4).toString 'hex'
+
+applyDefaultValues = (document) ->
+  for path, {default: default_definition} of schemaOf(document)
+    if dotGet(document, path) == undefined
+      unless default_definition == undefined
+        if _.isFunction default_definition
+          dotSet document, path, default_definition(document)
+        else
+          dotSet document, path, default_definition
+
+pickDocument = (document) ->
+  if document.constructor._options.strict_pick
+    result = dotPick document _.keys schemaOf document
+  else
+    result = _.pick.apply null, [document].concat _.keys document
+
+  return _.extend result,
+    __v: document.__v
+
+refreshDocument = (document, latest) ->
+  for path of schemaOf(document)
+    dotSet document, path, dotGet(latest)
+
+validatePath = (document, path) ->
+  deferred = Q.defer()
+  promises = []
+
+  definition = dotGet document.constructor._schema, path
+  value = dotGet document, path
+
+  error = (message) ->
+    deferred.reject new Error "Validating fail on `#{path}` #{message}"
+    return deferred.promise
+
+  # null or undefined
+  if value in [null, undefined] and !definition.required
+    return deferred.resolve()
+
+  # embedded array
+  if _.isArray definition
+    Type = _.first definition
+
+    if _.isArray value
+      for item in value
+        if isInstanceOf Type, item
+          if isDocument item
+            promises.push item.validate()
+        else
+          return error 'is Array of ' + typeNameOf Type
+
+    else
+      return error 'is Array'
+
+  if definition.type
+    Type = definition.type
+  else if _.isFunction definition
+    Type = definition
+  else
+    Type = null
+
+  # type
+  if Type
+    if isInstanceOf Type, value
+      if isEmbeddedDocumentPath value
+        promises.push value.validate()
+    else
+      return error 'is ' + typeNameOf Type
+
+  # enum
+  if definition.enum
+    unless value in definition.enum
+      return error "in [#{definition.enum.join ', '}]"
+
+  # regex
+  if definition.regex
+    unless definition.regex.test value
+      return error 'match ' + definition.regex
+
+  # validator
+  if definition.validator
+    if _.isArray definition.validator
+      validators = definition.validator
+    else
+      validators = [definition.validator]
+
+    for validator in validators
+      try
+        result = validator.call document, document
+      catch err
+        promises.push Q.reject err
+
+      if Q.isPromise result
+        promises.push result
+
+  Q.all(promises).then deferred.resolve
+
+  return deferred.promise
+
+modelOf = (value) ->
+  if value?._schema
+    return value
+  else
+    return value?.constructor
+
+schemaOf = (value) ->
+  return modelOf(value)?._schema
+
+typeNameOf = (value) ->
+  return value?._name ? value?.name
+
+isModel = (value) ->
+  return value?._schema
+
+isDocument = (value) ->
+  return isModel value?.constructor
+
+isEmbeddedDocument = (value) ->
+  return value?._path and !value._index
+
+isEmbeddedArray = (value) ->
+  return value?._path and value._index
+
+isInstanceOf = (Type, value) ->
+  switch Type
+    when String
+      return _.isString value
+
+    when Number
+      return _.isNumber value
+
+    when Date
+      return _.isDate value
+
+    when Boolean
+      return _.isBoolean value
+
+    else
+      return value instanceof Type
+
+forEachPath = (model, document, iterator) ->
+  for path, definition of model._schema
+    value = dotGet document, path
+
+    if definition.type
+      Type = definition.type
+    else if _.isFunction definition
+      Type = definition
+    else
+      Type = null
+
+    it =
+      Type: Type
+
+      dotSet: (value) ->
+        dotSet document, path, value
+
+      isEmbeddedArrayPath: ->
+        return _.isArray definition
+
+      getEmbeddedArrayModel: ->
+        return _.first definition
+
+      isEmbeddedDocumentPath: ->
+        return isModel Type
+
+      getEmbeddedDocumentModel: ->
+        return Type
+
+    iterator path, value, definition, it
+
+addVersionForUpdates = (updates) ->
+  is_atom_op = _.every _.keys(updates), (key) ->
+    return key[0] == '$'
+
+  if is_atom_op
+    updates.$set ?= {}
+    updates.$set['__v'] ?= randomVersion()
+  else
+    updates['__v'] ?= randomVersion()
+
+addPrefixForUpdates = (updates, document) ->
+  paths = []
+
+  for k, v of updates
+    if k[0] == '$'
+      if _.isObject(v) and !_.isArray(v)
+        addPrefixForUpdates v, document
+
+    else
+      paths.push k
+
+  if document._index
+    prefix = "#{document._path}.$."
+  else
+    prefix = "#{document._path}."
+
+  for k in paths
+    updates[prefix + k] = updates[k]
+    delete updates[k]
