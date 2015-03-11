@@ -803,6 +803,12 @@ dotPick = (object, keys) ->
 
   return result
 
+splitArguments = (args) ->
+  return {
+    args: _.reject args, _.isFunction
+    callback: _.find args, _.isFunction
+  }
+
 randomVersion = ->
   return crypto.pseudoRandomBytes(4).toString 'hex'
 
@@ -1022,22 +1028,19 @@ addVersionForUpdates = (updates) ->
   else
     updates['__v'] ?= randomVersion()
 
-addPrefixForUpdates = (updates, document) ->
-  paths = []
-
-  for k, v of updates
-    if k[0] == '$'
-      if _.isObject(v) and !_.isArray(v)
-        addPrefixForUpdates v, document
-
-    else
-      paths.push k
+addPrefixForUpdates = (document, updates) ->
+  result = {}
 
   if document._index
     prefix = "#{document._path}.$."
   else
     prefix = "#{document._path}."
 
-  for k in paths
-    updates[prefix + k] = updates[k]
-    delete updates[k]
+  for path, query of updates
+    if path[0] == '$'
+      if _.isObject(query) and !_.isArray(query)
+        result[path] = addPrefixForUpdates document, query
+    else
+      result[prefix + path] = query
+
+  return result
