@@ -25,7 +25,7 @@ class Model
   ###
   Section: Create document
 
-  Create doucment and save to MongoDB:
+  Create document and save to MongoDB:
 
   ```coffee
   user = new User
@@ -491,20 +491,17 @@ class Model
 
   * `callback` (optional) {Function} `(err) ->`
 
+  TODO: embedded
+
   ###
-  update: (updates, options, callback) ->
-    # TODO: sub-Model
-    args = _.toArray arguments
-    args.unshift @_id
+  update: ->
+    {args, callback} = splitArguments arguments
 
-    original = _.last args
-    args[args.length - 1] = (err, document) =>
+    return modelOf(@).findByIdAndUpdate(@_id, args...).then (document) ->
       unless options.new == false
-        _.extend @, document
-
-      original.apply @, arguments
-
-    @constructor.findByIdAndUpdate.apply @constructor, args
+        refreshDocument @, document
+      return document
+    .nodeify callback
 
   ###
   Public: Modify
@@ -652,21 +649,21 @@ module.exports = class Mabolo
 
   * `uri` (optional) {String} uri of MongoDB
 
-  ```coffee
-  new Mabolo()
-  new Mabolo 'mongodb://localhost/test'
-  ```
   ###
   constructor: (uri) ->
-    @connect uri if uri
+    @connect = _.once @connect
+
+    if uri
+      @connect uri
 
   ###
   Public: Connect to MongoDB
 
-  * `uri` {String} uri of MongoDB
+  * `uri` {String} uri of MongoDB, like `mongodb://localhost/test`
   * `callback` (optional) {Function} `(err, db) ->`
 
-  return {Promise} `(db) ->`
+  return {Promise} resolve with `Db` from node-mongodb-native
+
   ###
   connect: (uri, callback) ->
     MongoClient.connect uri, (err, db) =>
@@ -681,25 +678,28 @@ module.exports = class Mabolo
   Public: Create a Mabolo Model
 
   * `name` {String} a camelcase model name, like `Account`
-  * `schema` {Object}
+  * `schema` {Object}, key should be field path, value should be a {Object}:
 
     * `type` {String}, {Number}, {Date}, {Boolean} or {Mabolo::ObjectID}
-    * `default` (optional) A value or a {Function}
-    * `enum` (optional) {Array} of values
-    * `regex` (optional) {RegExp}
-    * `required` (optional) {Boolean}
     * `validator` (optional) {Function} or {Array}
+    * `required` (optional) {Boolean}
+    * `default` (optional) A value or a {Function}
+    * `regex` (optional) {RegExp}
+    * `enum` (optional) {Array} of values
 
   * `options` (optional) {Object}
 
     * `collection_name` {String} overwrite default collection name
     * `strict_pick` {Boolean} only store defined fields to database, default `true`
 
-  Basic usages:
+  return a Class extends from {Model}
+
+  if schema field has only a type, it can shorthand like:
 
   ```coffee
   User = mabolo.model 'User',
     username: String
+    age: Number
   ```
 
   Default value for field:

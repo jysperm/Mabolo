@@ -1,25 +1,17 @@
 describe 'Mabolo', ->
-  mabolo = null
+  describe '#connect', ->
+    it 'constructor with uri', (done) ->
+      mabolo = new Mabolo mongodb_uri
+      mabolo.connect().nodeify done
 
-  it 'Mabolo.constructor', ->
-    mabolo = new Mabolo mongodb_uri
-
-  it 'Mabolo.model', ->
-    User = mabolo.model 'User',
-      username:
-        type: String
-
-    User._options.collection_name.should.be.equal 'users'
-
-    Ticket = mabolo.model 'Ticket', null,
-      collection_name: 'ticket'
-
-    Ticket._options.collection_name.should.be.equal 'ticket'
-
-  it 'Mabolo.connect', (done) ->
-    do (mabolo) ->
+    it 'constructor without uri (callback style)', (done) ->
       mabolo = new Mabolo()
-
       mabolo.connect mongodb_uri, (err, db) ->
         db.should.be.exist
         done err
+
+    it 'constructor without uri (promise style)', (done) ->
+      mabolo = new Mabolo()
+      mabolo.connect(mongodb_uri).nodeify done
+
+  describe '#model', ->
