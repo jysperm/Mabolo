@@ -642,6 +642,7 @@ module.exports = class Mabolo
   models: {}
 
   # Public: ObjectID from node-mongodb-native
+  @ObjectID: ObjectID
   ObjectID: ObjectID
 
   ###
@@ -678,7 +679,7 @@ module.exports = class Mabolo
   Public: Create a Mabolo Model
 
   * `name` {String} a camelcase model name, like `Account`
-  * `schema` {Object}, key should be field path, value should be a {Object}:
+  * `schema` {Object}, key should be field path, value should be a {Mabolo::ObjectID}:
 
     * `type` {String}, {Number}, {Date}, {Boolean} or {Mabolo::ObjectID}
     * `validator` (optional) {Function} or {Array}
@@ -691,8 +692,11 @@ module.exports = class Mabolo
 
     * `collection_name` {String} overwrite default collection name
     * `strict_pick` {Boolean} only store defined fields to database, default `true`
+    * `memoize` {Boolean} store model in {Mabolo#models} and keep the name unique
 
   return a Class extends from {Model}
+
+  ## Examples
 
   if schema field has only a type, it can shorthand like:
 
@@ -702,15 +706,7 @@ module.exports = class Mabolo
     age: Number
   ```
 
-  Default value for field:
-
-  ```coffee
-  User = mabolo.model 'User',
-    full_name:
-      default: 'none'
-  ```
-
-  Multi-level path:
+  Use dot to split Multi-level path:
 
   ```coffee
   User = mabolo.model 'User',
@@ -724,9 +720,8 @@ module.exports = class Mabolo
   User = mabolo.model 'User',
     username:
       type: String
-      enum: ['tomato', 'potato']
-      regex: /^[a-z]{3,8}$/
       required: true
+      enum: ['tomato', 'potato']
   ```
 
   Define your own validator:
@@ -735,10 +730,8 @@ module.exports = class Mabolo
   User = mabolo.model 'User',
     username:
       validator: (username) ->
-        if /^[a-z]{3,8}$/.test username
-          return null
-        else
-          return 'invalid_username'
+        unless /^[a-z]{3,8}$/.test username
+          throw new Error 'invalid_username'
   ```
 
   `validator` can be:
@@ -746,27 +739,41 @@ module.exports = class Mabolo
   * {Function} `(value, document) ->` throw a err (Sync) or return {Promise} (Async)
   * {Array} of {Function}
 
+  Get already defined model:
+
+  ```coffee
+  User = mabolo.model 'User'
+  ```
+
   ###
   model: (name, schema, options) ->
+    if @models[name]
+      if schema
+        throw new Error "Mabolo#model: #{name} already exists"
+      else
+        return @models[name]
+
     options = _.extend(
       collection_name: lingo.pluralize name.toLowerCase()
       strict_pick: true
+      memoize: true
     , options)
 
-    class model extends Model
+    class SubModel extends Model
 
-    model.initialize
+    SubModel.initialize
       _name: name
       _mabolo: @
-      _schema: schema
+      _schema: formatSchema schema
       _options: options
 
       collection: @connected.promise.then (db) ->
         return db.collection options.collection_name
 
-    @models[name] = model
+    if options.memoize
+      @models[name] = SubModel
 
-    return model
+    return SubModel
 
 # Helpers
 
@@ -833,6 +840,20 @@ refreshDocument = (document, latest) ->
   for path of schemaOf(document)
     dotSet document, path, dotGet(latest)
 
+formatSchema = (schema) ->
+  for path, definition of schema
+    if _.isFunction definition
+      schema[path] =
+        type: definition
+
+    if definition.validator
+      if _.isArray definition.validator
+        definition.validators = definition.validator
+      else
+        definition.validators = [definition.validator]
+
+  return schema
+
 validatePath = (document, path) ->
   deferred = Q.defer()
   promises = []
@@ -889,15 +910,10 @@ validatePath = (document, path) ->
       return error 'match ' + definition.regex
 
   # validator
-  if definition.validator
-    if _.isArray definition.validator
-      validators = definition.validator
-    else
-      validators = [definition.validator]
-
-    for validator in validators
+  unless _.isEmpty definition.validators
+    for validator in definition.validators
       try
-        result = validator.call document, document
+        result = validator.call value, document
       catch err
         promises.push Q.reject err
 
@@ -916,14 +932,6 @@ modelOf = (value) ->
 
 schemaOf = (value) ->
   return modelOf(value)?._schema
-
-typeOfDefinition = (definition) ->
-  if definition.type
-    return definition.type
-  else if _.isFunction definition
-    return definition
-  else
-    return null
 
 typeNameOf = (value) ->
   return value?._name ? value?.name
@@ -972,7 +980,7 @@ toObject = (document) ->
           return value
 
     # embedded model
-    else if isModel typeOfDefinition(definition)
+    else if isModel definition.type
       if isDocument value
         dotSet result, path, value.toObject()
 
@@ -1003,7 +1011,7 @@ transformDocument = (document) ->
 
     # embedded model
     else
-      Type = typeOfDefinition definition
+      Type = definition.type
 
       if value in [undefined, null]
         continue

@@ -1,10 +1,5 @@
 mabolo = new Mabolo mongodb_uri
 
-User = mabolo.model 'User',
-  username: String
-  blog: String
-  age: Number
-
 describe.skip 'model.modify', ->
   user = null
 

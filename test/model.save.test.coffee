@@ -1,15 +1,5 @@
 mabolo = new Mabolo mongodb_uri
 
-User = mabolo.model 'User',
-  username:
-    required: true
-    type: String
-
-  age:
-    required: true
-    type: Number
-    default: 18
-
 describe.skip 'model.save', ->
   describe 'default value', ->
     it 'Model.create', (done) ->
