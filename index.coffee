@@ -642,7 +642,6 @@ module.exports = class Mabolo
   models: {}
 
   # Public: ObjectID from node-mongodb-native
-  @ObjectID: ObjectID
   ObjectID: ObjectID
 
   ###
@@ -679,10 +678,14 @@ module.exports = class Mabolo
   Public: Create a Mabolo Model
 
   * `name` {String} a camelcase model name, like `Account`
-  * `schema` {Object}, key should be field path, value should be a {Mabolo::ObjectID}:
+  * `schema` {Object}, key should be field path, value should be a {Object}:
 
     * `type` {String}, {Number}, {Date}, {Boolean} or {Mabolo::ObjectID}
-    * `validator` (optional) {Function} or {Array}
+    * `validator` (optional) {Function} or {Array}:
+
+      * `(value, document) ->` throw a err (Sync) or return {Promise} (Async)
+      * {Array} of {Function}
+
     * `required` (optional) {Boolean}
     * `default` (optional) A value or a {Function}
     * `regex` (optional) {RegExp}
@@ -695,6 +698,12 @@ module.exports = class Mabolo
     * `memoize` {Boolean} store model in {Mabolo#models} and keep the name unique
 
   return a Class extends from {Model}
+
+  Get already defined model:
+
+  ```coffee
+  User = mabolo.model 'User'
+  ```
 
   ## Examples
 
@@ -732,17 +741,6 @@ module.exports = class Mabolo
       validator: (username) ->
         unless /^[a-z]{3,8}$/.test username
           throw new Error 'invalid_username'
-  ```
-
-  `validator` can be:
-
-  * {Function} `(value, document) ->` throw a err (Sync) or return {Promise} (Async)
-  * {Array} of {Function}
-
-  Get already defined model:
-
-  ```coffee
-  User = mabolo.model 'User'
   ```
 
   ###
@@ -1040,8 +1038,10 @@ addPrefixForUpdates = (document, updates) ->
 
   if document._index
     prefix = "#{document._path}.$."
-  else
+  else if document._path
     prefix = "#{document._path}."
+  else
+    return updates
 
   for path, query of updates
     if path[0] == '$'
@@ -1051,3 +1051,27 @@ addPrefixForUpdates = (document, updates) ->
       result[prefix + path] = query
 
   return result
+
+Mabolo.helpers =
+  dotGet: dotGet
+  dotSet: dotSet
+  dotPick: dotPick
+  splitArguments: splitArguments
+  randomVersion: randomVersion
+  applyDefaultValues: applyDefaultValues
+  pickDocument: pickDocument
+  refreshDocument: refreshDocument
+  formatSchema: formatSchema
+  validatePath: validatePath
+  modelOf: modelOf
+  schemaOf: schemaOf
+  typeNameOf: typeNameOf
+  isModel: isModel
+  isDocument: isDocument
+  isEmbeddedDocument: isEmbeddedDocument
+  isEmbeddedArray: isEmbeddedArray
+  isInstanceOf: isInstanceOf
+  toObject: toObject
+  transformDocument: transformDocument
+  addVersionForUpdates: addVersionForUpdates
+  addPrefixForUpdates: addPrefixForUpdates
