@@ -1,6 +1,6 @@
 mabolo = new Mabolo mongodb_uri
 
-describe 'model.embedded', ->
+describe.skip 'model.embedded', ->
   describe 'embedded model', ->
     Token = null
     User = null

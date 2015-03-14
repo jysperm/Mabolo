@@ -4,7 +4,7 @@ User = mabolo.model 'User',
   username: String
   email: String
 
-describe 'model.statics', ->
+describe.skip 'model.statics', ->
   jysperm_id = null
 
   before (done) ->

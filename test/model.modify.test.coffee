@@ -5,7 +5,7 @@ User = mabolo.model 'User',
   blog: String
   age: Number
 
-describe 'model.modify', ->
+describe.skip 'model.modify', ->
   user = null
 
   it 'save document', (done) ->

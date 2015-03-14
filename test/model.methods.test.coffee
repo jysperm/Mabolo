@@ -5,7 +5,7 @@ User = mabolo.model 'User',
 
   email: String
 
-describe 'model.methods', ->
+describe.skip 'model.methods', ->
   jysperm = null
 
   describe 'model.constructor', ->

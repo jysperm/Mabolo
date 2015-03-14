@@ -10,7 +10,7 @@ User = mabolo.model 'User',
     type: Number
     default: 18
 
-describe 'model.save', ->
+describe.skip 'model.save', ->
   describe 'default value', ->
     it 'Model.create', (done) ->
       User.create
