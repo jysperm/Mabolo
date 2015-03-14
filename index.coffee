@@ -27,20 +27,24 @@ class Model
 
   Create doucment and save to MongoDB:
 
-      user = new User
-        username: 'jysperm'
+  ```coffee
+  user = new User
+    username: 'jysperm'
 
-      user.save (err) ->
-        console.log @_id
+  user.save.then ->
+    console.log user._id
+  ```
 
   Mabolo will queue your operators before connecting to MongoDB.
 
   Or use `User.create`:
 
-      User.create
-        username: 'jysperm'
-      , (err, user) ->
-        console.log user._id
+  ```coffee
+  User.create
+    username: 'jysperm'
+  .then (user) ->
+    console.log user._id
+  ```
 
   ###
 
@@ -96,15 +100,15 @@ class Model
   ```
 
   * `document` {Object}
-  * `callback` (optional) {Function} `(err, document) ->`
+  * `callback` (optional) {Function}
 
-  return `Promise` `(document) ->`
+  return {Promise} `(document) ->`
 
   ###
   @create: (document, callback) ->
     document = new @ document
 
-    document.save().then ->
+    return document.save().then ->
       return document
     .nodeify callback
 
@@ -142,7 +146,9 @@ class Model
   ###
   Public: Find
 
-      Model.find query, [options], [callback]
+  ```coffee
+  Model.find query, [options], [callback]
+  ```
 
   * `query` (optional) {Object}
   * `options` (optional) {Object}
@@ -150,26 +156,32 @@ class Model
 
   Find documents from MongoDB:
 
-      User.find (err, users) ->
-        console.log users[0].username
+  ```coffee
+  User.find (err, users) ->
+    console.log users[0].username
+  ```
 
   {Model.find} will callback with array of data, instead of a Cursor.
 
   ###
   @find: ->
-    self = @
+    {args, callback} = splitArguments arguments
 
-    @execute('find').apply null, @injectCallback arguments, (err, cursor) ->
-      if err
-        @callback err
-      else
+    return @execute('find').apply(null, args).then (cursor) =>
+      return Q.Promise (resolve, reject) =>
         cursor.toArray (err, documents) =>
-          @callback err, self.transform documents
+          if err
+            reject err
+          else
+            resolve @transform documents
+    .nodeify callback
 
   ###
   Public: Find one
 
-      Model.findOne query, [options], [callback]
+  ```coffee
+  Model.findOne query, [options], [callback]
+  ```
 
   * `query` (optional) {Object}
   * `options` (optional) {Object}
@@ -177,24 +189,28 @@ class Model
 
   ###
   @findOne: ->
-    @execute('findOne').apply null, @injectCallback arguments
+    {args, callback} = splitArguments arguments
+    return @execute('findOne').apply(null, args).nodeify callback
 
   ###
   Public: Find by id
 
-      Model.findById id, [options], [callback]
+  ```coffee
+  Model.findById id, [options], [callback]
+  ```
 
-  * `id` {ObjectID}
+  * `id` {Mabolo::ObjectID} or {String}
   * `options` (optional) {Object}
   * `callback` (optional) {Function} `(err, document) ->`
 
   ###
   @findById: (id) ->
-    try
-      arguments[0] = _id: ObjectID id
-      @findOne.apply @, arguments
-    catch err
-      (_.last arguments) err
+    {args, callback} = splitArguments arguments
+
+    return Q.Promise (resolve, reject) =>
+      args[0] = _id: ObjectID id
+      @findOne.apply(@, args).then resolve, reject
+    .nodeify callback
 
   ###
   Public: Count
@@ -208,7 +224,8 @@ class Model
 
   ###
   @count: ->
-    @execute('count').apply null, @injectCallback arguments
+    {args, callback} = splitArguments arguments
+    return @execute('count').apply(null, args).nodeify callback
 
   ###
   Public: Aggregate
@@ -223,7 +240,8 @@ class Model
 
   ###
   @aggregate: ->
-    @execute('aggregate').apply null, arguments
+    {args, callback} = splitArguments arguments
+    return @execute('aggregate').apply(null, args).nodeify callback
 
   ###
   Section: Manage MongoDB Collection
@@ -232,10 +250,10 @@ class Model
   ###
   Public: Get Collection
 
-  return Collection of node-mongodb-native or {undefined}
+  return {Promise} `(Collection) ->`
   ###
   @getCollection: ->
-    return @_mabolo.db?.collection @_options.collection_name
+    return collection
 
   ###
   Public: Ensure index
@@ -250,7 +268,8 @@ class Model
 
   ###
   @ensureIndex: ->
-    @execute('ensureIndex').apply null, arguments
+    {args, callback} = splitArguments arguments
+    return @execute('ensureIndex').apply(null, args).nodeify callback
 
   ###
   Section: Update MongoDB
@@ -271,7 +290,8 @@ class Model
   ###
   @update: (query, updates) ->
     addVersionForUpdates updates
-    @execute('update').apply null, arguments
+    {args, callback} = splitArguments arguments
+    return @execute('update').apply(null, args).nodeify callback
 
   ###
   Public: Remove
@@ -286,7 +306,8 @@ class Model
 
   ###
   @remove: ->
-    @execute('remove').apply null, arguments
+    {args, callback} = splitArguments arguments
+    return @execute('remove').apply(null, args).nodeify callback
 
   ###
   Public: Fine one and update
@@ -305,19 +326,15 @@ class Model
   * `callback` (optional) {Function} `(err, document) ->`
 
   ###
-  @findOneAndUpdate: (query, updates, options, _callback) ->
+  @findOneAndUpdate: ->
+    {args: [query, updates, options], callback} = splitArguments arguments
     addVersionForUpdates updates
-    self = @
 
-    callback = _.last @injectCallback arguments, (err, document) ->
-      @callback err, self.transform document
+    options ?=
+      new: true
+      sort: null
 
-    unless _callback
-      options =
-        new: true
-        sort: null
-
-    @execute('findAndModify') query, options.sort, updates, options, callback
+    return @execute('findAndModify')(query, options.sort, updates, options).nodeify callback
 
   ###
   Public: Find by id and update
@@ -336,11 +353,12 @@ class Model
 
   ###
   @findByIdAndUpdate: (id) ->
-    try
-      arguments[0] = _id: ObjectID id
-      @findOneAndUpdate.apply @, arguments
-    catch err
-      (_.last arguments) err
+    {arg, callback} = splitArguments arguments
+
+    return Q.Promise (resolve, reject) =>
+      args[0] = _id: ObjectID id
+      return @findOneAndUpdate.apply(@, args).then resolve, reject
+    .nodeify callback
 
   ###
   Public: Find one and remove
@@ -357,17 +375,13 @@ class Model
   * `callback` (optional) {Function} `(err, document) ->`
 
   ###
-  @findOneAndRemove: (query, options, _callback) ->
-    self = @
+  @findOneAndRemove: ->
+    {args: [query, options], callback} = splitArguments arguments
 
-    callback = _.last @injectCallback arguments, (err, document) ->
-      @callback err, self.transform document
+    options ?=
+      sort: null
 
-    unless _callback
-      options =
-        sort: null
-
-    @execute('findAndRemove') query, options.sort, options, callback
+    return @execute('findAndRemove')(query, options.sort, options).nodeify callback
 
   ###
   Public: Find by id and remove
@@ -382,41 +396,25 @@ class Model
 
   ###
   @findByIdAndRemove: (id) ->
-    try
-      arguments[0] = _id: ObjectID id
-      @findOneAndRemove.apply @, arguments
-    catch err
-      (_.last arguments) err
+    {arg, callback} = splitArguments arguments
+
+    return Q.Promise (resolve, reject) ->
+      args[0] = _id: ObjectID id
+      return @findOneAndRemove.apply(@, args).then resolve, reject
+    .nodeify callback
 
   @initialize: (options) ->
     _.extend @, options
 
   @execute: (name) ->
     return =>
-      modelOf(@).collection.then (collection) ->
-        deferred = Q.defer()
-        collection[name] [(_.toArray arguments)..., deferred.makeNodeResolver()]
-        return deferred
-
-  @injectCallback: (args, callback) ->
-    args = _.toArray args
-    _callback = args[args.length - 1]
-    self = @
-
-    callback ?= ->
-      @callback.apply @, arguments
-
-    if _.isFunction _callback
-      next = ->
-        callback.apply
-          callback: ->
-            _callback.apply self, arguments
-        , arguments
-
-      args[args.length - 1] = (err, document) =>
-        next err, @transform document
-
-    return args
+      modelOf(@).collection.then (collection) =>
+        return Q.Promise (resolve, reject) =>
+          collection[name] arguments..., (err, result) =>
+            if err
+              reject err
+            else
+              resolve @transform result
 
   ###
   Section: Document Methods
@@ -527,6 +525,8 @@ class Model
 
   The document will rollback to latest version if validating fail or `commit` received an err.
 
+  TODO: embedded
+
   ###
   modify: (modifier, callback) ->
     # TODO: sub-Model
@@ -591,13 +591,12 @@ class Model
 
   * `callback` (optional) {Function} `(err, result) ->`
 
+  TODO: embedded
+
   ###
   remove: (callback) ->
-    # TODO: sub-Model
     @_isRemoved = true
-
-    @constructor.remove _id: @_id, ->
-      callback.apply null, arguments
+    modelOf(@).execute('remove')(_id: @_id).nodeify callback
 
   ###
   Public: Parent
@@ -684,7 +683,7 @@ module.exports = class Mabolo
   * `name` {String} a camelcase model name, like `Account`
   * `schema` {Object}
 
-    * `type` {String}, {Number}, {Date}, {Boolean} or {ObjectID}
+    * `type` {String}, {Number}, {Date}, {Boolean} or {Mabolo::ObjectID}
     * `default` (optional) A value or a {Function}
     * `enum` (optional) {Array} of values
     * `regex` (optional) {RegExp}
@@ -744,7 +743,7 @@ module.exports = class Mabolo
 
   `validator` can be:
 
-  * {Function} `(value, document) ->` throw a err (Sync) or return `Promise` (Async)
+  * {Function} `(value, document) ->` throw a err (Sync) or return {Promise} (Async)
   * {Array} of {Function}
 
   ###
@@ -762,7 +761,7 @@ module.exports = class Mabolo
       _schema: schema
       _options: options
 
-      collection: @connected.then (db) ->
+      collection: @connected.promise.then (db) ->
         return db.collection options.collection_name
 
     @models[name] = model
