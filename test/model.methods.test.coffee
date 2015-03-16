@@ -8,13 +8,8 @@ describe.skip 'model.methods', ->
       jysperm = new User
         username: 'jysperm'
 
-      jysperm.username.should.be.equal 'jysperm'
       jysperm.toObject().should.be.eql
         username: 'jysperm'
-
-      jysperm.save (err) ->
-        jysperm._id.should.be.exist
-        done err
 
   describe 'model.update', ->
     it 'update', (done) ->

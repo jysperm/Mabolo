@@ -408,13 +408,16 @@ class Model
 
   @execute: (name) ->
     return =>
-      modelOf(@).collection.then (collection) =>
-        return Q.Promise (resolve, reject) =>
-          collection[name] arguments..., (err, result) =>
+      args = arguments
+      model = modelOf @
+
+      model.collection.then (collection) ->
+        return Q.Promise (resolve, reject) ->
+          collection[name] args..., (err, result) ->
             if err
               reject err
             else
-              resolve @transform result
+              resolve model.transform result
 
   ###
   Section: Document Methods
@@ -638,9 +641,6 @@ class Model
 
 # Public: Mabolo
 module.exports = class Mabolo
-  connected: Q.defer()
-  models: {}
-
   # Public: ObjectID from node-mongodb-native
   ObjectID: ObjectID
 
@@ -651,7 +651,17 @@ module.exports = class Mabolo
 
   ###
   constructor: (uri) ->
-    @connect = _.once @connect
+    connected = Q.defer()
+    @models = {}
+
+    @connect = _.once (uri, callback) ->
+      MongoClient.connect uri, (err, db) ->
+        if err
+          connected.reject err
+        else
+          connected.resolve db
+
+      return connected.promise.nodeify callback
 
     if uri
       @connect uri
@@ -665,14 +675,7 @@ module.exports = class Mabolo
   return {Promise} resolve with `Db` from node-mongodb-native
 
   ###
-  connect: (uri, callback) ->
-    MongoClient.connect uri, (err, db) =>
-      if err
-        @connected.reject err
-      else
-        @connected.resolve db
-
-    @connected.promise.nodeify callback
+  connect: ->
 
   ###
   Public: Create a Mabolo Model
@@ -765,7 +768,7 @@ module.exports = class Mabolo
       _schema: formatSchema schema
       _options: options
 
-      collection: @connected.promise.then (db) ->
+      collection: @connect().then (db) ->
         return db.collection options.collection_name
 
     if options.memoize
@@ -827,16 +830,21 @@ applyDefaultValues = (document) ->
 
 pickDocument = (document) ->
   if document.constructor._options.strict_pick
-    result = dotPick document _.keys schemaOf document
+    result = dotPick document, _.keys schemaOf document
   else
     result = _.pick.apply null, [document].concat _.keys document
 
   return _.extend result,
     __v: document.__v
 
+# TODO: embedded
+# TODO: version
 refreshDocument = (document, latest) ->
   for path of schemaOf(document)
-    dotSet document, path, dotGet(latest)
+    dotSet document, path, dotGet(latest, path)
+
+  _.extend document,
+    _id: latest._id
 
 formatSchema = (schema) ->
   for path, definition of schema
@@ -892,7 +900,7 @@ validatePath = (document, path) ->
   # type
   if Type
     if isInstanceOf Type, value
-      if isEmbeddedDocumentPath value
+      if isEmbeddedDocument value
         promises.push value.validate()
     else
       return error 'is ' + typeNameOf Type

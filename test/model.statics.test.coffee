@@ -6,23 +6,6 @@ describe.skip 'model.statics', ->
   before (done) ->
     User.remove done
 
-  describe 'Model.create', ->
-    it 'create jysperm', (done) ->
-      User.create
-        username: 'jysperm'
-        email: 'jysperm@gmail.com'
-      , (err, user) ->
-        user._id.should.be.exist
-        user.username.should.be.equal 'jysperm'
-        user.should.be.instanceOf User
-        jysperm_id = user._id
-        done err
-
-    it 'create faceair', (done) ->
-      User.create
-        username: 'faceair'
-      , done
-
   describe 'Model.getCollection', ->
     it 'getCollection', ->
       User.getCollection().constructor.name.should.be.equal 'Collection'
