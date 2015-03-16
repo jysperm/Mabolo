@@ -27,12 +27,10 @@
   },
   "devDependencies": {
     "chai": "^1.9.2",
-    "coffee-coverage": "0.4.2",
     "endokken": "lee-dohm/endokken#v0.2.0",
     "gulp": "^3.8.11",
     "gulp-rsync": "^0.0.5",
     "gulp-shell": "^0.3.0",
-    "mocha": "^2.0.0",
-    "mocha-reporter-cov-summary": "^0.1.0"
+    "mocha": "^2.0.0"
   }
 }
