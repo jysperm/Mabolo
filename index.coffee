@@ -2,7 +2,6 @@
 {EventEmitter} = require 'events'
 {en: lingo} = require 'lingo'
 crypto = require 'crypto'
-async = require 'async'
 _ = require 'underscore'
 Q = require 'q'
 
@@ -12,9 +11,8 @@ Public: Mabolo Model
 Define model methods and instance methods:
 
 ```coffee
-User.findByName = (name) ->
-  arguments[0] = username: name
-  @findOne.apply @, arguments
+User.findByName = (name, options...) ->
+  return @findOne name: name, options...
 
 User::getName = ->
   return @username
@@ -49,21 +47,17 @@ class Model
   ###
 
   ###
-  Public: Constructor
-
-  ```coffee
-  new Model document
-  ```
+  Public: Constructor from a object
 
   * `document` {Object}
 
   ###
   constructor: (document) ->
     Object.defineProperties @,
-      # Does the document query from MongoDB
+      # Does the document saved to MongoDB
       _isNew:
         writable: true
-      # Did the document removed from MongoDB
+      # Does the document removed from MongoDB
       _isRemoved:
         writable: true
       # The parent of this document
@@ -93,16 +87,12 @@ class Model
     @transform()
 
   ###
-  Public: Create
-
-  ```coffee
-  Model.create document, [callback]
-  ```
+  Public: Create document and save to MongoDB
 
   * `document` {Object}
   * `callback` (optional) {Function}
 
-  return {Promise} `(document) ->`
+  return {Promise} resolve with document
 
   ###
   @create: (document, callback) ->
@@ -111,33 +101,6 @@ class Model
     return document.save().then ->
       return document
     .nodeify callback
-
-  ###
-  Public: Transform
-
-  ```coffee
-  Model.transform document
-  Model.transform documents
-  ```
-
-  * `document` (optional) {Object} or {Array}
-
-  return {Model} document or {Array} of {Model} documents
-
-  ###
-  @transform: (document) ->
-    if document?.cursorId?._bsontype
-      return document
-
-    else if _.isArray document
-      return _.map document, (doc) =>
-        return new @ doc
-
-    else if _.isObject document
-      return new @ document
-
-    else
-      return document
 
   ###
   Section: Query from MongoDB
@@ -406,6 +369,20 @@ class Model
   @initialize: (options) ->
     _.extend @, options
 
+  @transform: (document) ->
+    if document?.cursorId?._bsontype
+      return document
+
+    else if _.isArray document
+      return _.map document, (doc) =>
+        return new @ doc
+
+    else if _.isObject document
+      return new @ document
+
+    else
+      return document
+
   @execute: (name) ->
     return =>
       args = arguments
@@ -465,6 +442,8 @@ class Model
       modelOf(@).execute('insert') (pickDocument @)
     .then ([document]) =>
       refreshDocument @, document
+      document._isNew = false
+      document._isRemoved = false
     .nodeify callback
 
   ###
@@ -829,7 +808,7 @@ applyDefaultValues = (document) ->
           dotSet document, path, default_definition
 
 pickDocument = (document) ->
-  if document.constructor._options.strict_pick
+  if optionsOf(document).strict_pick
     result = dotPick document, _.keys schemaOf document
   else
     result = _.pick.apply null, [document].concat _.keys document
@@ -840,11 +819,15 @@ pickDocument = (document) ->
 # TODO: embedded
 # TODO: version
 refreshDocument = (document, latest) ->
-  for path of schemaOf(document)
-    dotSet document, path, dotGet(latest, path)
+  if optionsOf(document).strict_pick
+    for path of schemaOf(document)
+      dotSet document, path, dotGet(latest, path)
 
-  _.extend document,
-    _id: latest._id
+    if latest._id
+      document._id = latest._id
+
+  else
+    _.extends document, latest
 
 formatSchema = (schema) ->
   for path, definition of schema
@@ -938,6 +921,9 @@ modelOf = (value) ->
 
 schemaOf = (value) ->
   return modelOf(value)?._schema
+
+optionsOf = (value) ->
+  return modelOf(value)?._options
 
 typeNameOf = (value) ->
   return value?._name ? value?.name

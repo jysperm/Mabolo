@@ -1,7 +1,7 @@
 {
   "name": "mabolo",
   "version": "0.3.0",
-  "description": "Just a simple wrapper of mongodb api.",
+  "description": "Just a simple ORM of MongoDB API.",
   "homepage": "http://mabolo.hackplan.com",
   "license": "MIT",
   "repository": {
@@ -19,7 +19,6 @@
     "test": "./node_modules/.bin/gulp test"
   },
   "dependencies": {
-    "async": "^0.9.0",
     "coffee-script": "^1.7.1",
     "lingo": "^0.0.5",
     "mongodb": "^1.4.28",
