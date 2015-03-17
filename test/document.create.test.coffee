@@ -1,6 +1,6 @@
 describe 'document.create', ->
   mabolo = new Mabolo mongodb_uri
-  {ObjectID} = mabolo
+  {ObjectID} = Mabolo
 
   User = mabolo.model 'User',
     name: String

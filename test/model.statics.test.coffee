@@ -16,57 +16,11 @@ describe.skip 'model.statics', ->
         username: 'orzfly'
       ).should.be.instanceOf User
 
-  describe 'Model.find', ->
-    it 'find all', (done) ->
-      User.find (err, users) ->
-        _.findWhere(users,
-          username: 'jysperm'
-        ).should.be.exist
-        _.findWhere(users,
-          username: 'faceair'
-        ).should.be.exist
-        done err
-
-    it 'find jysperm', (done) ->
-      User.find
-        username: 'jysperm'
-      , (err, users) ->
-        users.length.should.be.equal 1
-        _.findWhere(users,
-          username: 'jysperm'
-        ).should.be.exist
-        done err
-
   describe 'Model.count', ->
     it 'count', (done) ->
       User.count (err, count) ->
         count.should.be.equal 2
         done err
-
-  describe 'Model.findOne', ->
-    it 'findOne', (done) ->
-      User.findOne
-        username: 'jysperm'
-      , (err, user) ->
-        user.email.should.be.equal 'jysperm@gmail.com'
-        done err
-
-  describe 'Model.findById', ->
-    it 'findById with ObjectID', (done) ->
-      User.findById jysperm_id, (err, user) ->
-        user.username.should.be.equal 'jysperm'
-        done err
-
-    it 'findById with string', (done) ->
-      User.findById jysperm_id.toString(), (err, user) ->
-        user.username.should.be.equal 'jysperm'
-        done err
-
-    it 'findById with invalid ObjectID', (done) ->
-      User.findById '1234', (err, user) ->
-        err.should.be.exist
-        expect(user).to.not.exist
-        done()
 
   describe 'Model.findOneAndUpdate', ->
     it 'findOneAndUpdate', (done) ->

@@ -130,7 +130,7 @@ class Model
   @find: ->
     {args, callback} = splitArguments arguments
 
-    return @execute('find').apply(null, args).then (cursor) =>
+    return @execute('find')(args...).then (cursor) =>
       return Q.Promise (resolve, reject) =>
         cursor.toArray (err, documents) =>
           if err
@@ -153,7 +153,7 @@ class Model
   ###
   @findOne: ->
     {args, callback} = splitArguments arguments
-    return @execute('findOne').apply(null, args).nodeify callback
+    return @execute('findOne')(args...).nodeify callback
 
   ###
   Public: Find by id
@@ -1045,6 +1045,8 @@ addPrefixForUpdates = (document, updates) ->
       result[prefix + path] = query
 
   return result
+
+Mabolo.ObjectID = ObjectID
 
 Mabolo.helpers =
   dotGet: dotGet
