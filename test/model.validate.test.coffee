@@ -1,5 +1,3 @@
-mabolo = new Mabolo mongodb_uri
-
 describe.skip 'model.validate', ->
   describe 'type, required', ->
     User = null

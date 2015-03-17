@@ -167,12 +167,10 @@ class Model
   * `callback` (optional) {Function} `(err, document) ->`
 
   ###
-  @findById: (id) ->
-    {args, callback} = splitArguments arguments
-
+  @findById: ->
+    {args: [id, args...], callback} = splitArguments arguments
     return Q.Promise (resolve, reject) =>
-      args[0] = _id: ObjectID id
-      @findOne.apply(@, args).then resolve, reject
+      @findOne(_id: ObjectID id, args...).then resolve, reject
     .nodeify callback
 
   ###
@@ -188,7 +186,7 @@ class Model
   ###
   @count: ->
     {args, callback} = splitArguments arguments
-    return @execute('count').apply(null, args).nodeify callback
+    return @execute('count')(args...).nodeify callback
 
   ###
   Public: Aggregate
@@ -204,19 +202,19 @@ class Model
   ###
   @aggregate: ->
     {args, callback} = splitArguments arguments
-    return @execute('aggregate').apply(null, args).nodeify callback
+    return @execute('aggregate')(args...).nodeify callback
 
   ###
   Section: Manage MongoDB Collection
   ###
 
   ###
-  Public: Get Collection
+  Public: Get collection
 
-  return {Promise} `(Collection) ->`
+  return {Promise} resolve with collection from node-mongodb-native
+
   ###
-  @getCollection: ->
-    return collection
+  @collection: ->
 
   ###
   Public: Ensure index
@@ -232,7 +230,7 @@ class Model
   ###
   @ensureIndex: ->
     {args, callback} = splitArguments arguments
-    return @execute('ensureIndex').apply(null, args).nodeify callback
+    return @execute('ensureIndex')(args...).nodeify callback
 
   ###
   Section: Update MongoDB
@@ -254,7 +252,7 @@ class Model
   @update: (query, updates) ->
     addVersionForUpdates updates
     {args, callback} = splitArguments arguments
-    return @execute('update').apply(null, args).nodeify callback
+    return @execute('update')(args...).nodeify callback
 
   ###
   Public: Remove
@@ -270,7 +268,7 @@ class Model
   ###
   @remove: ->
     {args, callback} = splitArguments arguments
-    return @execute('remove').apply(null, args).nodeify callback
+    return @execute('remove')(args...).nodeify callback
 
   ###
   Public: Fine one and update
@@ -315,12 +313,11 @@ class Model
   * `callback` (optional) {Function} `(err, document) ->`
 
   ###
-  @findByIdAndUpdate: (id) ->
-    {arg, callback} = splitArguments arguments
+  @findByIdAndUpdate: ->
+    {args: [id, args...], callback} = splitArguments arguments
 
     return Q.Promise (resolve, reject) =>
-      args[0] = _id: ObjectID id
-      return @findOneAndUpdate.apply(@, args).then resolve, reject
+      return @findOneAndUpdate(_id: ObjectID id, args...).then resolve, reject
     .nodeify callback
 
   ###
@@ -358,12 +355,11 @@ class Model
   * `callback` (optional) {Function} `(err, document) ->`
 
   ###
-  @findByIdAndRemove: (id) ->
-    {arg, callback} = splitArguments arguments
+  @findByIdAndRemove: ->
+    {args: [id, args], callback} = splitArguments arguments
 
     return Q.Promise (resolve, reject) ->
-      args[0] = _id: ObjectID id
-      return @findOneAndRemove.apply(@, args).then resolve, reject
+      return @findOneAndRemove(_id: ObjectID id, args...).then resolve, reject
     .nodeify callback
 
   @initialize: (options) ->
@@ -386,9 +382,9 @@ class Model
   @execute: (name) ->
     return =>
       args = arguments
-      model = modelOf @
+      model = @
 
-      model.collection.then (collection) ->
+      model.collection().then (collection) ->
         return Q.Promise (resolve, reject) ->
           collection[name] args..., (err, result) ->
             if err
@@ -439,7 +435,7 @@ class Model
     applyDefaultValues @
 
     @validate().then =>
-      modelOf(@).execute('insert') (pickDocument @)
+      modelOf(@).execute('insert') pickDocument @
     .then ([document]) =>
       refreshDocument @, document
       document._isNew = false
@@ -739,6 +735,9 @@ module.exports = class Mabolo
       memoize: true
     , options)
 
+    collection = @connect().then (db) ->
+      return db.collection options.collection_name
+
     class SubModel extends Model
 
     SubModel.initialize
@@ -747,8 +746,7 @@ module.exports = class Mabolo
       _schema: formatSchema schema
       _options: options
 
-      collection: @connect().then (db) ->
-        return db.collection options.collection_name
+      collection: -> collection
 
     if options.memoize
       @models[name] = SubModel

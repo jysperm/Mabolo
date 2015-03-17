@@ -1,26 +1,11 @@
-mabolo = new Mabolo mongodb_uri
-
 describe.skip 'model.statics', ->
   jysperm_id = null
-
-  before (done) ->
-    User.remove done
-
-  describe 'Model.getCollection', ->
-    it 'getCollection', ->
-      User.getCollection().constructor.name.should.be.equal 'Collection'
 
   describe 'Model.transform', ->
     it 'transform', ->
       User.transform(
         username: 'orzfly'
       ).should.be.instanceOf User
-
-  describe 'Model.count', ->
-    it 'count', (done) ->
-      User.count (err, count) ->
-        count.should.be.equal 2
-        done err
 
   describe 'Model.findOneAndUpdate', ->
     it 'findOneAndUpdate', (done) ->

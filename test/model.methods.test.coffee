@@ -1,5 +1,3 @@
-mabolo = new Mabolo mongodb_uri
-
 describe.skip 'model.methods', ->
   jysperm = null
 
