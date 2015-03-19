@@ -84,7 +84,7 @@ class Model
     unless @__v
       @__v = randomVersion()
 
-    @transform()
+    transformDocument @
 
   ###
   Public: Create document and save to MongoDB
@@ -409,11 +409,24 @@ class Model
 
   ###
   validate: (callback) ->
-    @transform()
+    transformDocument @
 
     Q.all _.keys(schemaOf @).map (path) =>
       return validatePath @, path
     .nodeify callback
+
+  ###
+  Public: Validate single path
+
+  * `path` {String}
+  * `callback` (optional) {Function} `(err) ->`
+
+  return {Promise}
+
+  ###
+  validatePath: (path, callback) ->
+    transformPath @, path
+    return validatePath(@, path).nodeify callback
 
   ###
   Public: Save
@@ -610,9 +623,6 @@ class Model
   ###
   parent: ->
     return @_parent
-
-  transform: ->
-    transformDocument @
 
 # Public: Mabolo
 module.exports = class Mabolo
@@ -977,43 +987,47 @@ toObject = (document) ->
   return result
 
 transformDocument = (document) ->
-  for path, definition of schemaOf(document)
-    value = dotGet document, path
+  for path of schemaOf(document)
+    transformPath document, path
 
-    # embedded array
-    if _.isArray definition
-      Type = _.first definition
+transformPath = (document, path) ->
+  definition = schemaOf(document)[path]
+  value = dotGet document, path
 
-      if value in [undefined, null]
-        dotSet document, path, []
+  # embedded array
+  if _.isArray definition
+    Type = _.first definition
 
-      else if isModel Type
-        dotSet document, path, value.map (value, index) =>
-          if isInstanceOf Type, value
-            transformDocument value
-            return value
+    if value in [undefined, null]
+      dotSet document, path, []
 
-          else
-            return new Type _.extend value,
-              _parent: @
-              _path: path
-              _index: index
-
-    # embedded model
-    else
-      Type = definition.type
-
-      if value in [undefined, null]
-        continue
-
-      if isModel Type
+    else if isModel Type
+      dotSet document, path, value.map (value, index) =>
         if isInstanceOf Type, value
           transformDocument value
+          return value
 
         else
-          dotSet document, path, new Type _.extend value,
+          return new Type _.extend value,
             _parent: @
             _path: path
+            _index: index
+
+  # embedded model
+  else
+    Type = definition.type
+
+    if value in [undefined, null]
+      return
+
+    if isModel Type
+      if isInstanceOf Type, value
+        transformDocument value
+
+      else
+        dotSet document, path, new Type _.extend value,
+          _parent: @
+          _path: path
 
 addVersionForUpdates = (updates) ->
   is_atom_op = _.every _.keys(updates), (key) ->
@@ -1059,6 +1073,7 @@ Mabolo.helpers =
   validatePath: validatePath
   modelOf: modelOf
   schemaOf: schemaOf
+  optionsOf: optionsOf
   typeNameOf: typeNameOf
   isModel: isModel
   isDocument: isDocument
@@ -1067,5 +1082,6 @@ Mabolo.helpers =
   isInstanceOf: isInstanceOf
   toObject: toObject
   transformDocument: transformDocument
+  transformPath: transformPath
   addVersionForUpdates: addVersionForUpdates
   addPrefixForUpdates: addPrefixForUpdates

@@ -14,61 +14,61 @@ Just a simple ORM of MongoDB API.
 
 ## Features
 
-* Define Schema and validate document
+### Define Schema and validate document
 
-  ```coffee
-  User = mabolo.model 'User',
-    username:
-      type: String
-      required: true
+```coffee
+User = mabolo.model 'User',
+  username:
+    type: String
+    required: true
 
-    password: String
+  password: String
 
-    age:
-      type: Number
-      default: 18
-  ```
+  age:
+    type: Number
+    default: 18
+```
 
-* Define model methods and document methods
+### Define model methods and document methods
 
-  ```coffee
-  User.findByName = (name, options...) ->
-    return @findOne name: name, options...
+```coffee
+User.findByName = (name, options...) ->
+  return @findOne name: name, options...
 
-  User::getName = ->
-    return @username
-  ```
+User::getName = ->
+  return @username
+```
 
-* Support embedded and reference relationship
+### Support embedded and reference relationship
 
-  ```coffee
-  Token = mabolo.model 'Token',
-    code: String
+```coffee
+Token = mabolo.model 'Token',
+  code: String
 
-  User = mabolo.model 'User',
-    tokens: [Token]
+User = mabolo.model 'User',
+  tokens: [Token]
 
-    partner:
-      type: mabolo.ref 'User'
-  ```
+  partner:
+    type: mabolo.refOf 'User'
+```
 
-* Promise style and callback style API
+### Promise style and callback style API
 
-  ```coffee
-  User.create
-    name: 'jysperm'
-  .then (jysperm) ->
+```coffee
+User.create
+  name: 'jysperm'
+.then (jysperm) ->
 
-  User.create
-    name: 'jysperm'
-  , (err, jysperm) ->
-  ```
+User.create
+  name: 'jysperm'
+, (err, jysperm) ->
+```
 
-* Modify document atomically
+### Modify document atomically
 
-  ```coffee
-  jysperm.modify (jysperm) ->
-    Q.delay(1000).then ->
-      jysperm.age = 19
-  .then ->
-  ```
+```coffee
+jysperm.modify (jysperm) ->
+  Q.delay(1000).then ->
+    jysperm.age = 19
+.then ->
+```
