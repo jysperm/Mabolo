@@ -675,7 +675,7 @@ module.exports = class Mabolo
     * `type` {String}, {Number}, {Date}, {Boolean} or {Mabolo::ObjectID}
     * `validator` (optional) {Function} or {Array}:
 
-      * `(value, document) ->` throw a err (Sync) or return {Promise} (Async)
+      * `(value) ->` throw a err (Sync) or return {Promise} (Async)
       * {Array} of {Function}
 
     * `required` (optional) {Boolean}
@@ -914,14 +914,14 @@ validatePath = (document, path) ->
   unless _.isEmpty definition.validators
     for validator in definition.validators
       try
-        result = validator.call value, document
+        result = validator.call document, value
       catch err
         promises.push Q.reject err
 
       if Q.isPromise result
         promises.push result
 
-  Q.all(promises).then deferred.resolve
+  Q.all(promises).then deferred.resolve, deferred.reject
 
   return deferred.promise
 
