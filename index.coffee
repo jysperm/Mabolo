@@ -317,7 +317,7 @@ class Model
     {args: [id, args...], callback} = splitArguments arguments
 
     return Q.Promise (resolve, reject) =>
-      return @findOneAndUpdate(_id: ObjectID id, args...).then resolve, reject
+      return @findOneAndUpdate(_id: ObjectID(id), args...).then resolve, reject
     .nodeify callback
 
   ###
@@ -356,10 +356,10 @@ class Model
 
   ###
   @findByIdAndRemove: ->
-    {args: [id, args], callback} = splitArguments arguments
+    {args: [id, args...], callback} = splitArguments arguments
 
-    return Q.Promise (resolve, reject) ->
-      return @findOneAndRemove(_id: ObjectID id, args...).then resolve, reject
+    return Q.Promise (resolve, reject) =>
+      return @findOneAndRemove(_id: ObjectID(id), args...).then resolve, reject
     .nodeify callback
 
   @initialize: (options) ->

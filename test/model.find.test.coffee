@@ -66,7 +66,7 @@ describe 'model.find', ->
       User.findOne
         name: 'orzfly'
       .then (user) ->
-        expect(user).to.not.exist
+        expect(user).to.not.exists
 
   describe '.findById', ->
     it 'find by id', ->
@@ -79,12 +79,12 @@ describe 'model.find', ->
 
     it 'find not exists', ->
       User.findById(new ObjectID).then (user) ->
-        expect(user).to.not.exist
+        expect(user).to.not.exists
 
     it 'find invalid id', (done) ->
       User.findById('jysperm').nodeify (err, user) ->
         expect(err).to.be.exist
-        expect(user).to.not.exist
+        expect(user).to.not.exists
         done()
 
   describe '.count', ->

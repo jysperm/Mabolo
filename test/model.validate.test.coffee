@@ -56,7 +56,7 @@ describe.skip 'model.validate', ->
         err.message.should.match /birthday.*is Date/
         done()
 
-    it 'should fail when path not exist', (done) ->
+    it 'should fail when path not.exists', (done) ->
       jysperm = new User
         username: 'jysperm'
 

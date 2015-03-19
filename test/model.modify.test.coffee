@@ -13,7 +13,7 @@ describe.skip 'model.modify', ->
       @age = 20
       commit()
     , (err) ->
-      expect(err).to.not.exist
+      expect(err).to.not.exists
       user.age.should.be.equal 20
 
       User.findById user._id, (err, user) ->
@@ -40,11 +40,11 @@ describe.skip 'model.modify', ->
     , (err) ->
       err.should.be.exist
       user.age.should.be.equal 20
-      expect(user.blog).to.not.exist
+      expect(user.blog).to.not.exists
 
       User.findById user._id, (err, user) ->
         user.age.should.be.equal 20
-        expect(user.blog).to.not.exist
+        expect(user.blog).to.not.exists
         done err
 
   it 'modify when conflict', (done) ->
@@ -60,7 +60,7 @@ describe.skip 'model.modify', ->
       , commit
 
     , (err) ->
-      expect(err).to.not.exist
+      expect(err).to.not.exists
       user.age.should.be.equal 21
       user.blog.should.be.equal 'jysperm.me'
 

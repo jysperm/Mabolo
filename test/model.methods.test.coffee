@@ -22,5 +22,5 @@ describe.skip 'model.methods', ->
     it 'remove', (done) ->
       jysperm.remove ->
         User.findById jysperm._id, (err, user) ->
-          expect(user).to.not.exist
+          expect(user).to.not.exists
           done err
