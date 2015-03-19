@@ -84,7 +84,7 @@ class Model
     unless @__v
       @__v = randomVersion()
 
-    transformDocument @
+    @transform()
 
   ###
   Public: Create document and save to MongoDB
@@ -409,7 +409,7 @@ class Model
 
   ###
   validate: (callback) ->
-    transformDocument @
+    @transform()
 
     Q.all _.keys(schemaOf @).map (path) =>
       return validatePath @, path
@@ -467,6 +467,10 @@ class Model
   ###
   toObject: ->
     return toObject @
+
+  transform: ->
+    for path of schemaOf(@)
+      transformPath @, path
 
   ###
   Public: Update
@@ -855,7 +859,7 @@ validatePath = (document, path) ->
   deferred = Q.defer()
   promises = []
 
-  definition = dotGet document.constructor._schema, path
+  definition = schemaOf(document)[path]
   value = dotGet document, path
 
   error = (message) ->
@@ -986,10 +990,6 @@ toObject = (document) ->
 
   return result
 
-transformDocument = (document) ->
-  for path of schemaOf(document)
-    transformPath document, path
-
 transformPath = (document, path) ->
   definition = schemaOf(document)[path]
   value = dotGet document, path
@@ -1081,7 +1081,6 @@ Mabolo.helpers =
   isEmbeddedArray: isEmbeddedArray
   isInstanceOf: isInstanceOf
   toObject: toObject
-  transformDocument: transformDocument
   transformPath: transformPath
   addVersionForUpdates: addVersionForUpdates
   addPrefixForUpdates: addPrefixForUpdates
