@@ -8,100 +8,78 @@ describe 'model.find', ->
 
   jysperm_id = null
 
-  before (done) ->
+  before ->
     User.remove
       name:
         $in: ['jysperm', 'faceair', 'we_cry', 'yudong']
-    .nodeify done
 
-  before (done) ->
+  before ->
     User.create
       name: 'jysperm'
       age: 19
     .then ({_id}) ->
       jysperm_id = _id
-    .nodeify done
 
-  before (done) ->
-    User.create
-      name: 'faceair'
-      age: 20
-    .nodeify done
-
-  before (done) ->
-    User.create
-      name: 'we_cry'
-      age: 20
-    .nodeify done
-
-  before (done) ->
-    User.create
-      name: 'yudong'
-      age: 23
-    .nodeify done
+  before ->
+    Q.all [
+      User.create name: 'faceair', age: 20
+      User.create name: 'we_cry', age: 20
+      User.create name: 'yudong', age: 23
+    ]
 
   describe '.find', ->
-    it 'find all', (done) ->
+    it 'find all', ->
       User.find().then (users) ->
         for name in ['jysperm', 'faceair', 'we_cry', 'yudong']
           _.findWhere(users, name: name).should.be.exist
-      .nodeify done
 
-    it 'find by name', (done) ->
+    it 'find by name', ->
       User.find
         name: 'jysperm'
       .then (users) ->
         users.length.should.be.equal 1
         users[0].age.should.be.equal 19
-      .nodeify done
 
-    it 'find by age', (done) ->
+    it 'find by age', ->
       User.find
         age: 20
       .then (users) ->
         for name in ['faceair', 'we_cry']
           _.findWhere(users, name: name).should.be.exist
-      .nodeify done
 
-    it 'find by age and sort', (done) ->
+    it 'find by age and sort', ->
       User.find {},
         sort: {age: -1}
         limit: 1
       .then (users) ->
         users.length.should.be.equal 1
         users[0].name.should.be.equal 'yudong'
-      .nodeify done
 
   describe '.findOne', ->
-    it 'find by name', (done) ->
+    it 'find by name', ->
       User.findOne
         name: 'jysperm'
       .then (user) ->
         user.age.should.be.equal 19
-      .nodeify done
 
-    it 'find not exists', (done) ->
+    it 'find not exists', ->
       User.findOne
         name: 'orzfly'
       .then (user) ->
         expect(user).to.not.exist
-      .nodeify done
 
   describe '.findById', ->
-    it 'find by id', (done) ->
+    it 'find by id', ->
       User.findById(jysperm_id).then (user) ->
         user.name.should.be.equal 'jysperm'
-      .nodeify done
 
-    it 'find by string of id', (done) ->
+    it 'find by string of id', ->
       User.findById(jysperm_id.toString()).then (user) ->
         user.name.should.be.equal 'jysperm'
-      .nodeify done
 
-    it 'find not exists', (done) ->
+    it 'find not exists', ->
       User.findById(new ObjectID).then (user) ->
         expect(user).to.not.exist
-      .nodeify done
 
     it 'find invalid id', (done) ->
       User.findById('jysperm').nodeify (err, user) ->
@@ -110,16 +88,15 @@ describe 'model.find', ->
         done()
 
   describe '.count', ->
-    it 'count with query', (done) ->
+    it 'count with query', ->
       User.count
         name:
           $in: ['jysperm', 'we_cry', 'orzfly']
       .then (count) ->
         count.should.be.equal 2
-      .nodeify done
 
   describe '.aggregate', ->
-    it 'sum of field', (done) ->
+    it 'sum of field', ->
       User.aggregate([
         $match:
           name:
@@ -131,4 +108,3 @@ describe 'model.find', ->
             $sum: '$age'
       ]).then ([{total}]) ->
         total.should.be.equal 59
-      .nodeify done

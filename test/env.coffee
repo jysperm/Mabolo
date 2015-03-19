@@ -7,6 +7,7 @@ _.extend global,
   mongodb_uri: 'mongodb://localhost/mabolo_test'
   Mabolo: require '../index'
   expect: chai.expect
+  Q: require 'q'
   _: _
 
 chai.should()

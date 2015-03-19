@@ -5,17 +5,15 @@ describe 'model.collection', ->
     name: String
 
   describe '.collection', ->
-    it 'get collection', (done) ->
+    it 'get collection', ->
       User.collection().then (collection) ->
         collection.stats.should.be.instanceof Function
-      .nodeify done
 
   describe '.ensureIndex', ->
     before (done) ->
       User.collection().then (collection) ->
         collection.dropAllIndexes done
 
-    it 'create index', (done) ->
+    it 'create index', ->
       User.ensureIndex
         name: 1
-      .nodeify done

@@ -15,18 +15,16 @@ describe 'document.create', ->
       jysperm.name.should.be.equal 'jysperm'
       jysperm.should.be.instanceof User
 
-    it 'save document', (done) ->
+    it 'save document', ->
       jysperm.save().then ->
         jysperm._id.should.be.instanceof ObjectID
         jysperm.__v.should.be.a 'string'
-      .nodeify done
 
   describe '#create', ->
-    it 'create document', (done) ->
+    it 'create document', ->
       User.create
         name: 'faceair'
       .then (faceair) ->
         faceair.name.should.be.equal 'faceair'
         faceair._id.should.be.instanceof ObjectID
         faceair.__v.should.be.a 'string'
-      .nodeify done
