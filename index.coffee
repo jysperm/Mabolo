@@ -787,18 +787,19 @@ pickDocument = (document, keys...) ->
 
   return _.extend result, _.pick(document, keys...)
 
-# TODO: embedded
-# TODO: version
 refreshDocument = (document, latest) ->
-  if optionsOf(document).strict_pick
-    for path of schemaOf(document)
+  unless optionsOf(document).strict_pick
+    _.extends document, latest
+
+  for path, spec of schemaOf(document)
+    if isModel spec.type
+      refreshDocument dotGet(document, path), dotGet(latest, path)
+
+    else
       dotSet document, path, dotGet(latest, path)
 
-    if latest._id
-      document._id = latest._id
-
-  else
-    _.extends document, latest
+  for field in ['_id', '__v']
+    document[field] = latest[field] if latest[field]
 
   return document
 
@@ -846,20 +847,13 @@ validatePath = (document, path) ->
     else
       return error 'is Array'
 
-  if definition.type
-    Type = definition.type
-  else if _.isFunction definition
-    Type = definition
-  else
-    Type = null
-
   # type
-  if Type
-    if isInstanceOf Type, value
+  if definition.type
+    if isInstanceOf definition.type, value
       if isEmbeddedDocument value
         promises.push value.validate()
     else
-      return error 'is ' + typeNameOf Type
+      return error 'is ' + typeNameOf definition.type
 
   # enum
   if definition.enum
@@ -965,7 +959,7 @@ transformPath = (document, path) ->
     else if isModel Type
       dotSet document, path, value.map (value, index) =>
         if isInstanceOf Type, value
-          transformDocument value
+          value.transform()
           return value
 
         else
@@ -983,7 +977,15 @@ transformPath = (document, path) ->
 
     if isModel Type
       if isInstanceOf Type, value
-        transformDocument value
+        value.transform()
+
+        unless value._parent
+          _.extend value,
+            _parent: @
+            _path: path
+
+        unless value._id
+          value._id = ObjectID()
 
       else
         dotSet document, path, new Type _.extend value,
