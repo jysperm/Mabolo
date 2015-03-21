@@ -1,6 +1,6 @@
 {
   "name": "mabolo",
-  "version": "0.3.0",
+  "version": "0.3.0-rc.1",
   "description": "Just a simple ORM of MongoDB API.",
   "homepage": "http://mabolo.hackplan.com",
   "license": "MIT",

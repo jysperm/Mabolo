@@ -1,23 +1,19 @@
 describe 'embedded.document', ->
   mabolo = new Mabolo mongodb_uri
 
+  Token = mabolo.model 'Token',
+    code: String
+
+  Token::getCode = ->
+    return @code
+
+  User = mabolo.model 'User',
+    name: String
+    token:
+      required: true
+      type: Token
+
   describe 'create document', ->
-    Token = null
-    User = null
-
-    it 'create model', ->
-      Token = mabolo.model 'Token',
-        code: String
-
-      Token::getCode = ->
-        return @code
-
-      User = mabolo.model 'User',
-        name: String
-        token:
-          required: true
-          type: Token
-
     it 'construct and save', ->
       jysperm = new User
         name: 'jysperm'

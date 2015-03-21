@@ -39,7 +39,7 @@ User::getName = ->
   return @username
 ```
 
-### Support embedded and reference relationship
+### Support embedded document or array
 
 ```coffee
 Token = mabolo.model 'Token',
@@ -47,8 +47,6 @@ Token = mabolo.model 'Token',
 
 User = mabolo.model 'User',
   tokens: [Token]
-  partner:
-    type: mabolo.refOf 'User'
 ```
 
 ### Promise style and callback style API
