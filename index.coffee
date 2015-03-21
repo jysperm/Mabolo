@@ -505,73 +505,58 @@ class Model
   document.modify modifier, [callback]
   ```
 
-  * `commit` {Function} `(err) ->`
+  * `modifier` {Function} `(document) ->`
   * `callback` (optional) {Function} `(err) ->`
 
   Modify exists document atomically:
 
-      user.modify (commit) ->
-        @name = 'jysperm'
-        commit()
-      , (err) ->
+  ```coffee
+  jysperm.modify (jysperm) ->
+    Q.delay(1000).then ->
+      jysperm.age = 19
+  .then ->
+  ```
 
-  The document will rollback to latest version if validating fail or `commit` received an err.
+  * If `modifier` executed without exception or return a resolved Promise, changes to document will be commit.
+  * If `modifier` return a rejected Promise or throw a exception, changes to document will be rollback.
+  * If validating fail, document will be rollback too.
 
   TODO: embedded
 
   ###
   modify: (modifier, callback) ->
-    # TODO: sub-Model
-    model = @constructor
-    FINISHED = {}
+    id = @_id
 
-    unless @_id
+    unless id
       throw new Error 'Document not yet exists in MongoDB'
 
-    overwrite = (latest) =>
-      for key in _.keys model._schema
-        delete @[key]
+    commit = (document) ->
+      version = document.__v
 
-      _.extend @, latest
-      @__v = latest.__v
+      Q().then ->
+        return modifier.call document, document
+      .then ->
+        return document.validate()
+      .then ->
+        return modelOf(document).findOneAndUpdate(
+          _id: id
+          __v: version
+        , _.extend(document,
+          __v: randomVersion()
+        )).then (result) ->
+          if result
+            return result
+          else
+            model.findById(id).then (latest) ->
+              commit latest
 
-    rollback = (callback) =>
-      model.findById @_id, (err, result) ->
-        overwrite result
-        callback()
-
-    async.forever (next) =>
-      modifier.call @, (err) =>
-        if err
-          return rollback ->
-            next err
-
-        @validate (err) ->
-          if err
-            return rollback ->
-              next err
-
-          original_v = @__v
-          @__v = randomVersion()
-          document = dotPick @, _.keys(model._schema)
-
-          model.findOneAndUpdate
-            _id: @_id
-            __v: original_v
-          , document, (err, result) ->
-            if err
-              rollback ->
-                next err
-
-            else if result
-              next FINISHED
-
-            else
-              rollback next
-
-    , (err) =>
-      err = null if err == FINISHED
-      callback.apply @, [err]
+    commit(@).then (document) ->
+      Q(document).nodeify callback
+    .catch (err) ->
+      model.findById(id).then (latest) ->
+        refreshDocument self, latest
+      .thenReject err
+      .nodeify callback
 
   ###
   Public: Remove
@@ -1061,26 +1046,4 @@ addPrefixForUpdates = (document, updates) ->
 Mabolo.ObjectID = ObjectID
 
 Mabolo.helpers =
-  dotGet: dotGet
-  dotSet: dotSet
-  dotPick: dotPick
-  splitArguments: splitArguments
-  randomVersion: randomVersion
-  applyDefaultValues: applyDefaultValues
-  pickDocument: pickDocument
-  refreshDocument: refreshDocument
-  formatSchema: formatSchema
-  validatePath: validatePath
-  modelOf: modelOf
-  schemaOf: schemaOf
-  optionsOf: optionsOf
-  typeNameOf: typeNameOf
-  isModel: isModel
-  isDocument: isDocument
-  isEmbeddedDocument: isEmbeddedDocument
-  isEmbeddedArray: isEmbeddedArray
-  isInstanceOf: isInstanceOf
-  toObject: toObject
-  transformPath: transformPath
-  addVersionForUpdates: addVersionForUpdates
   addPrefixForUpdates: addPrefixForUpdates
