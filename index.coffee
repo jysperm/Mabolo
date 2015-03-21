@@ -448,7 +448,7 @@ class Model
     applyDefaultValues @
 
     @validate().then =>
-      modelOf(@).execute('insert') pickDocument @
+      modelOf(@).execute('insert') pickDocument(@, '__v')
     .then ([document]) =>
       refreshDocument @, document
       document._isNew = false
@@ -492,8 +492,8 @@ class Model
   update: ->
     {args, callback} = splitArguments arguments
 
-    return modelOf(@).findByIdAndUpdate(@_id, args...).then (document) ->
-      unless options.new == false
+    return modelOf(@).findByIdAndUpdate(@_id, args...).then (document) =>
+      if isDocument document
         refreshDocument @, document
       return document
     .nodeify callback
@@ -538,7 +538,7 @@ class Model
       .then ->
         return document.validate()
       .then ->
-        return modelOf(document).findOneAndUpdate(
+        modelOf(document).findOneAndUpdate(
           _id: id
           __v: version
         , _.extend(document,
@@ -804,14 +804,13 @@ applyDefaultValues = (document) ->
         else
           dotSet document, path, default_definition
 
-pickDocument = (document) ->
+pickDocument = (document, keys...) ->
   if optionsOf(document).strict_pick
     result = dotPick document, _.keys schemaOf document
   else
-    result = _.pick.apply null, [document].concat _.keys document
+    result = _.pick document (_.keys document)...
 
-  return _.extend result,
-    __v: document.__v
+  return _.extend result, _.pick(document, keys...)
 
 # TODO: embedded
 # TODO: version

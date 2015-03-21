@@ -4,7 +4,7 @@ describe 'document.validate', ->
 
   describe 'type and required', ->
     User = mabolo.model 'User',
-      username:
+      name:
         required: true
         type: String
 
@@ -21,7 +21,7 @@ describe 'document.validate', ->
 
     it 'should success', ->
       jysperm = new User
-        username: 'jysperm'
+        name: 'jysperm'
         age: 19
         birthday: new Date '1995-11-25'
         id: ObjectID()
@@ -33,14 +33,14 @@ describe 'document.validate', ->
 
     it 'should success with required paths', ->
       jysperm = new User
-        username: 'jysperm'
+        name: 'jysperm'
         age: 19
 
       return jysperm.validate()
 
     it 'should fail with invalid value', (done) ->
       jysperm = new User
-        username: 'jysperm'
+        name: 'jysperm'
         age: 19
         birthday: 'invalid-date'
 
@@ -50,7 +50,7 @@ describe 'document.validate', ->
 
     it 'should fail with missing required path', (done) ->
       jysperm = new User
-        username: 'jysperm'
+        name: 'jysperm'
 
       jysperm.validate (err) ->
         err.message.should.match /age.*Number/
@@ -58,7 +58,7 @@ describe 'document.validate', ->
 
   describe 'enum and regex', ->
     User = mabolo.model 'User',
-      username:
+      name:
         required: true
         regex: /^[a-z]{3,8}$/
 
@@ -70,28 +70,28 @@ describe 'document.validate', ->
 
     it 'should success', ->
       jysperm = new User
-        username: 'jysperm'
+        name: 'jysperm'
         age: 19
 
       return jysperm.validate()
 
     it 'should success when ignore', ->
       jysperm = new User
-        username: 'jysperm'
+        name: 'jysperm'
 
       return jysperm.validate()
 
     it 'should fail because regex', (done) ->
       jysperm = new User
-        username: 'JYSPERM'
+        name: 'JYSPERM'
 
       jysperm.validate (err) ->
-        err.message.should.match /username.*match/
+        err.message.should.match /name.*match/
         done()
 
     it 'should fail because enum', (done) ->
       jysperm = new User
-        username: 'jysperm'
+        name: 'jysperm'
         age: 20
 
       jysperm.validate (err) ->
@@ -100,23 +100,47 @@ describe 'document.validate', ->
 
   describe 'validator', ->
     User = mabolo.model 'User',
-      username:
-        validator: (username) ->
-          unless /^[a-z]{3,8}$/.test username
-            throw new Error 'invalid_username'
+      name:
+        validator: (name) ->
+          unless /^[a-z]{3,8}$/.test name
+            throw new Error 'invalid_name'
     ,
       memoize: false
 
     it 'should success', ->
       jysperm = new User
-        username: 'jysperm'
+        name: 'jysperm'
 
       return jysperm.validate()
 
     it 'should fail', (done) ->
       jysperm = new User
-        username: 'JYSPERM'
+        name: 'JYSPERM'
 
       jysperm.validate (err) ->
-        err.message.should.match /invalid_username/
+        err.message.should.match /invalid_name/
+        done()
+
+  describe '#validatePath', ->
+    User = mabolo.model 'User',
+      name:
+        regex: /^[a-z]{3,8}$/
+        type: String
+
+      age:
+        type: Number
+        enum: [18, 19]
+    ,
+      memoize: false
+
+    jysperm = new User
+      name: 'JYSPERM'
+      age: 19
+
+    it 'should success', ->
+      return jysperm.validatePath('age')
+
+    it 'should fail', (done) ->
+      jysperm.validatePath 'name', (err) ->
+        err.message.should.match /name/
         done()
