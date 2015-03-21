@@ -1,6 +1,6 @@
 {ObjectID, MongoClient} = require 'mongodb'
 {EventEmitter} = require 'events'
-{en: lingo} = require 'lingo'
+inflection = require 'inflection'
 crypto = require 'crypto'
 _ = require 'underscore'
 Q = require 'q'
@@ -21,7 +21,7 @@ User::getName = ->
 ###
 class Model
   ###
-  Section: Create document
+  Section: Create Document
 
   Create document and save to MongoDB:
 
@@ -50,6 +50,8 @@ class Model
   Public: Constructor from a object
 
   * `document` {Object}
+
+  Every document will be added a `__v` automatically, it is a random version to prevent conflict when {Model::modify}.
 
   ###
   constructor: (document) ->
@@ -87,12 +89,12 @@ class Model
     @transform()
 
   ###
-  Public: Create document and save to MongoDB
+  Public: Create document and save
 
   * `document` {Object}
   * `callback` (optional) {Function}
 
-  return {Promise} resolve with document
+  return {Promise} resolve with document.
 
   ###
   @create: (document, callback) ->
@@ -103,19 +105,7 @@ class Model
     .nodeify callback
 
   ###
-  Section: Query from MongoDB
-  ###
-
-  ###
-  Public: Find
-
-  ```coffee
-  Model.find query, [options], [callback]
-  ```
-
-  * `query` (optional) {Object}
-  * `options` (optional) {Object}
-  * `callback` (optional) {Function} `(err, documents) ->`
+  Section: Query Documents
 
   Find documents from MongoDB:
 
@@ -124,7 +114,16 @@ class Model
     console.log users[0].username
   ```
 
-  {Model.find} will callback with array of data, instead of a Cursor.
+  ###
+
+  ###
+  Public: Find
+
+  * `query` (optional) {Object}
+  * `options` (optional) {Object}
+  * `callback` (optional) {Function}
+
+  return {Promise} resolve with documents. {Model.find} will return array of data, instead of a Cursor.
 
   ###
   @find: ->
@@ -142,13 +141,11 @@ class Model
   ###
   Public: Find one
 
-  ```coffee
-  Model.findOne query, [options], [callback]
-  ```
-
   * `query` (optional) {Object}
   * `options` (optional) {Object}
-  * `callback` (optional) {Function} `(err, document) ->`
+  * `callback` (optional) {Function}
+
+  return {Promise} resolve with document.
 
   ###
   @findOne: ->
@@ -158,13 +155,11 @@ class Model
   ###
   Public: Find by id
 
-  ```coffee
-  Model.findById id, [options], [callback]
-  ```
-
   * `id` {Mabolo::ObjectID} or {String}
   * `options` (optional) {Object}
-  * `callback` (optional) {Function} `(err, document) ->`
+  * `callback` (optional) {Function}
+
+  return {Promise} resolve with document.
 
   ###
   @findById: ->
@@ -176,12 +171,10 @@ class Model
   ###
   Public: Count
 
-  ```coffee
-  Model.count query, [options], [callback]
-  ```
-
   * `query` (optional) {Object}
-  * `callback` (optional) {Function} `(err, document) ->`
+  * `callback` (optional) {Function}
+
+  return {Promise} resolve with a {Number} of count.
 
   ###
   @count: ->
@@ -191,13 +184,11 @@ class Model
   ###
   Public: Aggregate
 
-  ```coffee
-  Model.aggregate commands, [options], [callback]
-  ```
-
   * `commands` {Array}
   * `options` (optional) {Object}
   * `callback` (optional) {Function}
+
+  return {Promise} resolve with result from MongoDB.
 
   ###
   @aggregate: ->
@@ -205,13 +196,13 @@ class Model
     return @execute('aggregate')(args...).nodeify callback
 
   ###
-  Section: Manage MongoDB Collection
+  Section: Manage Collection
   ###
 
   ###
   Public: Get collection
 
-  return {Promise} resolve with collection from node-mongodb-native
+  return {Promise} resolve with `Collection` from node-mongodb-native
 
   ###
   @collection: ->
@@ -219,13 +210,11 @@ class Model
   ###
   Public: Ensure index
 
-  ```coffee
-  Model.ensureIndex fields, [options], [callback]
-  ```
-
   * `fileds` {Object}
   * `options` (optional) {Object}
   * `callback` (optional) {Function}
+
+  return {Promise} resolve with result from MongoDB.
 
   ###
   @ensureIndex: ->
@@ -233,20 +222,18 @@ class Model
     return @execute('ensureIndex')(args...).nodeify callback
 
   ###
-  Section: Update MongoDB
+  Section: Update Documents
   ###
 
   ###
   Public: Update
 
-  ```coffee
-  Model.update query, updates, [options], [callback]
-  ```
-
   * `query` {Object}
   * `updates` {Object}
   * `options` (optional) {Object}
   * `callback` (optional) {Function}
+
+  return {Promise} resolve with result from MongoDB.
 
   ###
   @update: (query, updates) ->
@@ -265,6 +252,8 @@ class Model
   * `options` (optional) {Object}
   * `callback` (optional) {Function}
 
+  return a {Promise}.
+
   ###
   @remove: ->
     {args, callback} = splitArguments arguments
@@ -273,18 +262,16 @@ class Model
   ###
   Public: Fine one and update
 
-  ```coffee
-  Model.findOneAndUpdate query, updates, [options], [callback]
-  ```
-
   * `query` {Object}
   * `updates` {Object}
   * `options` (optional) {Object}
 
-    * `sort` (optional) {Object} `{field: -1}`
+    * `sort` (optional) {Object} like `{field: -1}`
     * `new` (optional) {Boolean} default `true`
 
-  * `callback` (optional) {Function} `(err, document) ->`
+  * `callback` (optional) {Function}
+
+  return {Promise} resolve with document if `options.new` is `true`
 
   ###
   @findOneAndUpdate: ->
@@ -300,17 +287,15 @@ class Model
   ###
   Public: Find by id and update
 
-  ```coffee
-  Model.findByIdAndUpdate id, updates, [options], [callback]
-  ```
-
   * `id` {ObjectID}
   * `updates` {Object}
   * `options` (optional) {Object}
 
     * `new` (optional) {Boolean} default `true`
 
-  * `callback` (optional) {Function} `(err, document) ->`
+  * `callback` (optional) {Function}
+
+  return {Promise} resolve with document if `options.new` is `true`
 
   ###
   @findByIdAndUpdate: ->
@@ -323,16 +308,14 @@ class Model
   ###
   Public: Find one and remove
 
-  ```coffee
-  Model.findOneAndRemove query, [options], [callback]
-  ```
-
   * `query` {Object}
   * `options` (optional) {Object}
 
-    * `sort` (optional) {Object} `{field: -1}`
+    * `sort` (optional) {Object} like `{field: -1}`
 
-  * `callback` (optional) {Function} `(err, document) ->`
+  * `callback` (optional) {Function}
+
+  return {Promise} resolve with result from MongoDB.
 
   ###
   @findOneAndRemove: ->
@@ -346,13 +329,11 @@ class Model
   ###
   Public: Find by id and remove
 
-  ```coffee
-  Model.findByIdAndRemove id, [options], [callback]
-  ```
-
   * `id` {ObjectID}
   * `options` (optional) {Object}
-  * `callback` (optional) {Function} `(err, document) ->`
+  * `callback` (optional) {Function}
+
+  return {Promise} resolve with result from MongoDB.
 
   ###
   @findByIdAndRemove: ->
@@ -397,15 +378,11 @@ class Model
   ###
 
   ###
-  Public: Validate
+  Public: Validate document
 
-  ```coffee
-  document.validate()
-  document.embedded.validate()
-  document.embedded[0].validate()
-  ```
+  * `callback` (optional) {Function}
 
-  * `callback` (optional) {Function} `(err) ->`
+  return a {Promise}.
 
   ###
   validate: (callback) ->
@@ -419,9 +396,9 @@ class Model
   Public: Validate single path
 
   * `path` {String}
-  * `callback` (optional) {Function} `(err) ->`
+  * `callback` (optional) {Function}
 
-  return {Promise}
+  return a {Promise}.
 
   ###
   validatePath: (path, callback) ->
@@ -431,11 +408,9 @@ class Model
   ###
   Public: Save
 
-  ```coffee
-  document.save [callback]
-  ```
+  * `callback` (optional) {Function}
 
-  * `callback` (optional) {Function} `(err) ->`
+  return a {Promise}.
 
   ###
   save: (callback) ->
@@ -456,17 +431,20 @@ class Model
     .nodeify callback
 
   ###
-  Public: To Object
+  Public: To object
 
-  ```coffee
-  document.toObject()
-  ```
-
-  return {Object}
+  return a {Object}.
 
   ###
   toObject: ->
     return toObject @
+
+  ###
+  Public: Transform
+
+  Construct all embedded document.
+
+  ###
 
   transform: ->
     for path of schemaOf(@)
@@ -475,16 +453,11 @@ class Model
   ###
   Public: Update
 
-  ```coffee
-  document.update updates, [options], [callback]
-  ```
-
   * `updates` {Object}
   * `options` {optional} {Object}
+  * `callback` (optional) {Function}
 
-    * `new` (optional) {Boolean} default `true`
-
-  * `callback` (optional) {Function} `(err) ->`
+  return {Promise} resolve with new document.
 
   TODO: embedded
 
@@ -499,14 +472,20 @@ class Model
     .nodeify callback
 
   ###
-  Public: Modify
-
-  ```coffee
-  document.modify modifier, [callback]
-  ```
+  Public: Modify document atomically
 
   * `modifier` {Function} `(document) ->`
-  * `callback` (optional) {Function} `(err) ->`
+  * `callback` (optional) {Function}
+
+  return {Promise} resolve with new document or reject with err.
+
+  * If `modifier` executed without exception or return a resolved Promise, changes to document will be commit.
+  * If `modifier` return a rejected Promise or throw a exception, changes to document will be rollback.
+  * If validating fail, document will be rollback too.
+
+  TODO: embedded
+
+  ## Examples
 
   Modify exists document atomically:
 
@@ -516,12 +495,6 @@ class Model
       jysperm.age = 19
   .then ->
   ```
-
-  * If `modifier` executed without exception or return a resolved Promise, changes to document will be commit.
-  * If `modifier` return a rejected Promise or throw a exception, changes to document will be rollback.
-  * If validating fail, document will be rollback too.
-
-  TODO: embedded
 
   ###
   modify: (modifier, callback) ->
@@ -560,12 +533,9 @@ class Model
   ###
   Public: Remove
 
-  ```coffee
-  document.remove [callback]
-  document.embedded.remove [callback]
-  ```
+  * `callback` (optional) {Function}
 
-  * `callback` (optional) {Function} `(err, result) ->`
+  return a {Promise}.
 
   TODO: embedded
 
@@ -575,24 +545,18 @@ class Model
     modelOf(@).execute('remove')(_id: @_id).nodeify callback
 
   ###
-  Public: Parent
+  Section: Embedded Document
 
   ```coffee
-  document.parent()
+  Token = mabolo.model 'Token',
+    code: String
+
+  User = mabolo.model 'User',
+    username: String
+    last_token: Token
+    tokens: [Token]
+    tags: [String]
   ```
-
-  return parent document {Object}
-
-  ## Embedded Document
-
-      Token = mabolo.model 'Token',
-        code: String
-
-      User = mabolo.model 'User',
-        username: String
-        last_token: Token
-        tokens: [Token]
-        tags: [String]
 
   * Every embedded document has a `_id` and `__v`
   * Validators of embedded document will be run after parent document
@@ -601,12 +565,21 @@ class Model
 
   You can use `parent()` to get parent document:
 
-      Token::revoke = (callback) ->
-        @parent().update
-          $pull:
-            tokens:
-              code: @code
-        , callback
+  ```coffee
+  Token::revoke = (callback) ->
+    @parent().update
+      $pull:
+        tokens:
+          code: @code
+    , callback
+  ```
+
+  ###
+
+  ###
+  Public: Parent document
+
+  return parent document.
 
   ###
   parent: ->
@@ -614,7 +587,7 @@ class Model
 
 # Public: Mabolo
 module.exports = class Mabolo
-  # Public: ObjectID from node-mongodb-native
+  # Public: ObjectID of node-mongodb-native
   ObjectID: ObjectID
 
   ###
@@ -643,9 +616,9 @@ module.exports = class Mabolo
   Public: Connect to MongoDB
 
   * `uri` {String} uri of MongoDB, like `mongodb://localhost/test`
-  * `callback` (optional) {Function} `(err, db) ->`
+  * `callback` (optional) {Function}
 
-  return {Promise} resolve with `Db` from node-mongodb-native
+  return {Promise} resolve with `Db` of node-mongodb-native
 
   ###
   connect: ->
@@ -671,7 +644,7 @@ module.exports = class Mabolo
 
     * `collection_name` {String} overwrite default collection name
     * `strict_pick` {Boolean} only store defined fields to database, default `true`
-    * `memoize` {Boolean} store model in {Mabolo#models} and keep the name unique
+    * `memoize` {Boolean} store model in {Mabolo::models} and keep the name unique
 
   return a Class extends from {Model}
 
@@ -728,7 +701,7 @@ module.exports = class Mabolo
         return @models[name]
 
     options = _.extend(
-      collection_name: lingo.pluralize name.toLowerCase()
+      collection_name: inflection.pluralize name.toLowerCase()
       strict_pick: true
       memoize: true
     , options)
@@ -752,6 +725,9 @@ module.exports = class Mabolo
     return SubModel
 
 # Helpers
+
+Mabolo.ObjectID = ObjectID
+Mabolo.helpers = helpers = {}
 
 dotGet = (object, path) ->
   paths = path.split '.'
@@ -1024,7 +1000,7 @@ addVersionForUpdates = (updates) ->
   else
     updates['__v'] ?= randomVersion()
 
-addPrefixForUpdates = (document, updates) ->
+addPrefixForUpdates = helpers.addPrefixForUpdates = (document, updates) ->
   result = {}
 
   if document._index
@@ -1042,8 +1018,3 @@ addPrefixForUpdates = (document, updates) ->
       result[prefix + path] = query
 
   return result
-
-Mabolo.ObjectID = ObjectID
-
-Mabolo.helpers =
-  addPrefixForUpdates: addPrefixForUpdates

@@ -22,11 +22,11 @@ User = mabolo.model 'User',
     type: String
     required: true
 
-  password: String
-
   age:
     type: Number
     default: 18
+
+  password: String
 ```
 
 ### Define model methods and document methods
@@ -47,7 +47,6 @@ Token = mabolo.model 'Token',
 
 User = mabolo.model 'User',
   tokens: [Token]
-
   partner:
     type: mabolo.refOf 'User'
 ```

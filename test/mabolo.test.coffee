@@ -35,8 +35,17 @@ describe 'Mabolo', ->
         'name.full':
           default: 'none'
 
+      User.findByName = (name, options...) ->
+        return @findOne name: name, options...
+
+      User::getName = ->
+        return @username
+
       User._schema.username.validators.should.instanceof Array
       User._schema.age.type.should.be.equal Number
+
+      User.findByName.should.be.a 'function'
+      (new User).getName.should.be.a 'Function'
 
     it 'options', ->
       Map = mabolo.model 'Map', {},

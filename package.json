@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "coffee-script": "^1.7.1",
-    "lingo": "^0.0.5",
+    "inflection": "^1.6.0",
     "mongodb": "^1.4.28",
     "q": "^1.2.0",
     "underscore": "^1.7.0"
