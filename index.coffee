@@ -526,6 +526,7 @@ class Model
   ###
   modify: (modifier, callback) ->
     id = @_id
+    model = modelOf @
 
     unless id
       throw new Error 'Document not yet exists in MongoDB'
@@ -538,7 +539,7 @@ class Model
       .then ->
         return document.validate()
       .then ->
-        modelOf(document).findOneAndUpdate(
+        model.findOneAndUpdate(
           _id: id
           __v: version
         , _.extend(document,
@@ -547,16 +548,14 @@ class Model
           if result
             return result
           else
-            model.findById(id).then (latest) ->
-              commit latest
+            model.findById(id).then commit
 
-    commit(@).then (document) ->
-      Q(document).nodeify callback
-    .catch (err) ->
-      model.findById(id).then (latest) ->
-        refreshDocument self, latest
-      .thenReject err
-      .nodeify callback
+    commit(@).then (document) =>
+      refreshDocument @, document
+    .catch (err) =>
+      model.findById(id).then (latest) =>
+        refreshDocument @, latest
+    .nodeify callback
 
   ###
   Public: Remove
@@ -824,6 +823,8 @@ refreshDocument = (document, latest) ->
 
   else
     _.extends document, latest
+
+  return document
 
 formatSchema = (schema) ->
   for path, definition of schema
