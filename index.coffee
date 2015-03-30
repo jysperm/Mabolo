@@ -428,6 +428,7 @@ class Model
       refreshDocument @, document
       document._isNew = false
       document._isRemoved = false
+      return document
     .nodeify callback
 
   ###
@@ -957,14 +958,18 @@ transformPath = (document, path) ->
       dotSet document, path, []
 
     else if isModel Type
-      dotSet document, path, value.map (value, index) =>
+      dotSet document, path, value.map (value, index) ->
         if isInstanceOf Type, value
           value.transform()
+
+          unless value._id
+            value._id = ObjectID()
+
           return value
 
         else
           return new Type _.extend value,
-            _parent: @
+            _parent: document
             _path: path
             _index: index
 
@@ -981,7 +986,7 @@ transformPath = (document, path) ->
 
         unless value._parent
           _.extend value,
-            _parent: @
+            _parent: document
             _path: path
 
         unless value._id
@@ -989,7 +994,7 @@ transformPath = (document, path) ->
 
       else
         dotSet document, path, new Type _.extend value,
-          _parent: @
+          _parent: document
           _path: path
 
 addVersionForUpdates = (updates) ->
