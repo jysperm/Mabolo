@@ -1,6 +1,6 @@
 {
   "name": "mabolo",
-  "version": "0.3.0-rc.1",
+  "version": "0.3.0",
   "description": "Just a simple ORM of MongoDB API.",
   "homepage": "http://mabolo.hackplan.com",
   "license": "MIT",
@@ -27,6 +27,7 @@
   },
   "devDependencies": {
     "chai": "^1.9.2",
+    "del": "^1.1.1",
     "endokken": "lee-dohm/endokken#v0.2.0",
     "gulp": "^3.8.11",
     "gulp-rsync": "^0.0.5",
