@@ -388,8 +388,12 @@ class Model
   validate: (callback) ->
     @transform()
 
-    Q.all _.keys(schemaOf @).map (path) =>
-      return validatePath @, path
+    Q().then =>
+      if containsOperators @
+        throw new Error 'Document contains MongoDB operators'
+
+      Q.all _.keys(schemaOf @).map (path) =>
+        return validatePath @, path
     .nodeify callback
 
   ###
@@ -1025,3 +1029,18 @@ addPrefixForUpdates = helpers.addPrefixForUpdates = (document, updates) ->
       result[prefix + path] = query
 
   return result
+
+containsOperators = helpers.containsOperators = (document) ->
+  for key, value of document
+    if '$' in key
+      return true
+    else if _.isObject value
+      return containsOperators value
+    else if _.isArray value
+      return value.some (item) ->
+        if _.isObject item
+          return containsOperators item
+        else
+          return false
+
+  return false

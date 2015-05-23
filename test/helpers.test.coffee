@@ -67,3 +67,37 @@ describe 'helpers', ->
         'arr.$.y': 2
       $inc:
         'arr.$.z': 3
+
+  it 'containsOperators', ->
+    {containsOperators} = helpers
+
+    containsOperators
+      $set:
+        x: 1
+    .should.be.true
+
+    containsOperators
+      a$b: true
+    .should.be.true
+
+    containsOperators
+      key:
+        $each: [1, 2]
+    .should.be.true
+
+    containsOperators
+      key: [
+        $: 1
+      ]
+    .should.be.true
+
+    containsOperators
+      key: '$value'
+      key2: 2
+    .should.be.false
+
+    containsOperators
+      key: [1, 2, '$']
+    .should.be.false
+
+    containsOperators({}).should.be.false

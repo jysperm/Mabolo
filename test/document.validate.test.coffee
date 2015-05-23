@@ -98,6 +98,20 @@ describe 'document.validate', ->
         err.message.should.match /age.*in/
         done()
 
+  describe 'injection attacks', ->
+    User = mabolo.model 'User',
+      name: Object
+    , memoize: false
+
+    it 'should fail', (done) ->
+      jysperm = new User
+        name:
+          $gt: 1
+
+      jysperm.validate (err) ->
+        err.message.should.match /contains.*operators/
+        done()
+
   describe 'validator', ->
     User = mabolo.model 'User',
       name:
