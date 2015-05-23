@@ -784,13 +784,13 @@ pickDocument = (document, keys...) ->
   if optionsOf(document).strict_pick
     result = dotPick document, _.keys schemaOf document
   else
-    result = _.pick document (_.keys document)...
+    result = _.pick document, (_.keys document)...
 
   return _.extend result, _.pick(document, keys...)
 
 refreshDocument = (document, latest) ->
   unless optionsOf(document).strict_pick
-    _.extends document, latest
+    _.extend document, latest
 
   for path, spec of schemaOf(document)
     if isModel spec.type
