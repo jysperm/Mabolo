@@ -53,5 +53,13 @@ describe 'Mabolo', ->
 
       Map._options.collection_name.should.be.equal 'map'
 
-    it 'get defined model', ->
-      mabolo.model('User').should.be.equal User
+  describe '#bind', ->
+    it 'should success', ->
+      mabolo = new Mabolo mongodb_uri
+
+      User = Mabolo.model 'User',
+        username: String
+
+      mabolo.bind User
+
+      return User.find()

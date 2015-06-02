@@ -16,8 +16,6 @@ describe 'document.validate', ->
       girl: Boolean
       id: ObjectID
       'sub.path': String
-    ,
-      memoize: false
 
     it 'should success', ->
       jysperm = new User
@@ -65,8 +63,6 @@ describe 'document.validate', ->
       age:
         type: Number
         enum: [18, 19]
-    ,
-      memoize: false
 
     it 'should success', ->
       jysperm = new User
@@ -101,7 +97,6 @@ describe 'document.validate', ->
   describe 'injection attacks', ->
     User = mabolo.model 'User',
       name: Object
-    , memoize: false
 
     it 'should fail', (done) ->
       jysperm = new User
@@ -118,8 +113,6 @@ describe 'document.validate', ->
         validator: (name) ->
           unless /^[a-z]{3,8}$/.test name
             throw new Error 'invalid_name'
-    ,
-      memoize: false
 
     it 'should success', ->
       jysperm = new User
@@ -144,8 +137,6 @@ describe 'document.validate', ->
       age:
         type: Number
         enum: [18, 19]
-    ,
-      memoize: false
 
     jysperm = new User
       name: 'JYSPERM'

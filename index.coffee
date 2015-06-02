@@ -344,7 +344,8 @@ class Model
     .nodeify callback
 
   @initialize: (options) ->
-    _.extend @, options
+    _.extend @, options,
+      collectionDeferred: Q.defer()
 
   @transform: (document) ->
     if document?.cursorId?._bsontype
@@ -359,6 +360,12 @@ class Model
 
     else
       return document
+
+  @bindCollection: (collection) ->
+    @collectionDeferred.resolve collection
+
+  @collection: ->
+    return @collectionDeferred.promise
 
   @execute: (name) ->
     return =>
@@ -596,39 +603,6 @@ module.exports = class Mabolo
   ObjectID: ObjectID
 
   ###
-  Public: Create a new Mabolo instance
-
-  * `uri` (optional) {String} uri of MongoDB
-
-  ###
-  constructor: (uri) ->
-    connected = Q.defer()
-    @models = {}
-
-    @connect = _.once (uri, callback) ->
-      MongoClient.connect uri, (err, db) ->
-        if err
-          connected.reject err
-        else
-          connected.resolve db
-
-      return connected.promise.nodeify callback
-
-    if uri
-      @connect uri
-
-  ###
-  Public: Connect to MongoDB
-
-  * `uri` {String} uri of MongoDB, like `mongodb://localhost/test`
-  * `callback` (optional) {Function}
-
-  return {Promise} resolve with `Db` of node-mongodb-native
-
-  ###
-  connect: ->
-
-  ###
   Public: Create a Mabolo Model
 
   * `name` {String} a camelcase model name, like `Account`
@@ -647,24 +621,17 @@ module.exports = class Mabolo
 
   * `options` (optional) {Object}
 
-    * `collection_name` {String} overwrite default collection name
-    * `strict_pick` {Boolean} only store defined fields to database, default `true`
-    * `memoize` {Boolean} store model in {Mabolo::models} and keep the name unique
+    * `collection` {String} overwrite default collection name
+    * `strictPick` {Boolean} only store defined fields to database, default `true`
 
   return a Class extends from {Model}
-
-  Get already defined model:
-
-  ```coffee
-  User = mabolo.model 'User'
-  ```
 
   ## Examples
 
   if schema field has only a type, it can shorthand like:
 
   ```coffee
-  User = mabolo.model 'User',
+  User = Mabolo.model 'User',
     username: String
     age: Number
   ```
@@ -672,7 +639,7 @@ module.exports = class Mabolo
   Use dot to split Multi-level path:
 
   ```coffee
-  User = mabolo.model 'User',
+  User = Mabolo.model 'User',
     'name.full':
       default: 'none'
   ```
@@ -680,7 +647,7 @@ module.exports = class Mabolo
   Define built-in validator for field:
 
   ```coffee
-  User = mabolo.model 'User',
+  User = Mabolo.model 'User',
     username:
       type: String
       required: true
@@ -690,7 +657,7 @@ module.exports = class Mabolo
   Define your own validator:
 
   ```coffee
-  User = mabolo.model 'User',
+  User = Mabolo.model 'User',
     username:
       validator: (username) ->
         unless /^[a-z]{3,8}$/.test username
@@ -698,36 +665,69 @@ module.exports = class Mabolo
   ```
 
   ###
-  model: (name, schema, options) ->
-    if @models[name]
-      if schema
-        throw new Error "Mabolo#model: #{name} already exists"
-      else
-        return @models[name]
+  @model: (name, schema, options = {}) ->
+    _.defaults options,
+      collection: inflection.pluralize name.toLowerCase()
+      strictPick: true
 
-    options = _.extend(
-      collection_name: inflection.pluralize name.toLowerCase()
-      strict_pick: true
-      memoize: true
-    , options)
+    class ModelInstance extends Model
 
-    collection = @connect().then (db) ->
-      return db.collection options.collection_name
-
-    class SubModel extends Model
-
-    SubModel.initialize
+    ModelInstance.initialize
       _name: name
-      _mabolo: @
       _schema: formatSchema schema
       _options: options
 
-      collection: -> collection
+    return ModelInstance
 
-    if options.memoize
-      @models[name] = SubModel
+  ###
+  Public: Create a new Mabolo instance
 
-    return SubModel
+  * `uri` (optional) {String} uri of MongoDB
+
+  ###
+  constructor: (uri) ->
+    if uri
+      @connect uri
+
+  ###
+  Public: Connect to MongoDB
+
+  * `uri` {String} uri of MongoDB, like `mongodb://localhost/test`
+  * `callback` (optional) {Function}
+
+  return {Promise} resolve with `Db` of node-mongodb-native
+
+  ###
+  connect: (uri, callback) ->
+    if @connected
+      return @connected.promise.nodeify(uri ? callback)
+    else
+      @connected = Q.defer()
+
+    MongoClient.connect uri, @connected.makeNodeResolver()
+
+    return @connected.promise.nodeify callback
+
+  ###
+    Public: Create a Mabolo Model
+
+    Same with {Mabolo.model}, But does not require call {Mabolo::bind}.
+  ###
+  model: (name, schema, options) ->
+    return @bind Mabolo.model arguments...
+
+  ###
+    Public: Bind a Model to this mabolo instance.
+
+    * `ModelInstance` {Model}
+
+    Return {Model}.
+  ###
+  bind: (ModelInstance) ->
+    @connect().then (db) ->
+      ModelInstance.bindCollection db.collection optionsOf(ModelInstance).collection
+
+    return ModelInstance
 
 # Helpers
 
@@ -785,7 +785,7 @@ applyDefaultValues = (document) ->
           dotSet document, path, default_definition
 
 pickDocument = (document, keys...) ->
-  if optionsOf(document).strict_pick
+  if optionsOf(document).strictPick
     result = dotPick document, _.keys schemaOf document
   else
     result = _.pick document, (_.keys document)...
@@ -793,7 +793,7 @@ pickDocument = (document, keys...) ->
   return _.extend result, _.pick(document, keys...)
 
 refreshDocument = (document, latest) ->
-  unless optionsOf(document).strict_pick
+  unless optionsOf(document).strictPick
     _.extend document, latest
 
   for path, spec of schemaOf(document)
