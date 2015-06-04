@@ -6,7 +6,7 @@ _ = require 'underscore'
 Q = require 'q'
 
 ###
-Public: Mabolo Model
+Public: Mabolo AbstractModel
 
 Define model methods and instance methods:
 
@@ -19,7 +19,7 @@ User::getName = ->
 ```
 
 ###
-class Model
+class AbstractModel
   ###
   Section: Create Document
 
@@ -51,7 +51,7 @@ class Model
 
   * `document` {Object}
 
-  Every document will be added a `__v` automatically, it is a random version to prevent conflict when {Model::modify}.
+  Every document will be added a `__v` automatically, it is a random version to prevent conflict when {AbstractModel::modify}.
 
   ###
   constructor: (document) ->
@@ -123,7 +123,7 @@ class Model
   * `options` (optional) {Object}
   * `callback` (optional) {Function}
 
-  return {Promise} resolve with documents. {Model.find} will return array of data, instead of a Cursor.
+  return {Promise} resolve with documents. {AbstractModel.find} will return array of data, instead of a Cursor.
 
   ###
   @find: ->
@@ -206,6 +206,7 @@ class Model
 
   ###
   @collection: ->
+    return @collectionDeferred.promise
 
   ###
   Public: Ensure index
@@ -363,9 +364,6 @@ class Model
 
   @bindCollection: (collection) ->
     @collectionDeferred.resolve collection
-
-  @collection: ->
-    return @collectionDeferred.promise
 
   @execute: (name) ->
     return =>
@@ -624,7 +622,7 @@ module.exports = class Mabolo
     * `collection` {String} overwrite default collection name
     * `strictPick` {Boolean} only store defined fields to database, default `true`
 
-  return a Class extends from {Model}
+  return a Class extends from {AbstractModel}
 
   ## Examples
 
@@ -670,14 +668,14 @@ module.exports = class Mabolo
       collection: inflection.pluralize name.toLowerCase()
       strictPick: true
 
-    class ModelInstance extends Model
+    class Model extends AbstractModel
 
-    ModelInstance.initialize
+    Model.initialize
       _name: name
       _schema: formatSchema schema
       _options: options
 
-    return ModelInstance
+    return Model
 
   ###
   Public: Create a new Mabolo instance
@@ -719,15 +717,15 @@ module.exports = class Mabolo
   ###
     Public: Bind a Model to this mabolo instance.
 
-    * `ModelInstance` {Model}
+    * `Model` {Model}
 
     Return {Model}.
   ###
-  bind: (ModelInstance) ->
+  bind: (Model) ->
     @connect().then (db) ->
-      ModelInstance.bindCollection db.collection optionsOf(ModelInstance).collection
+      Model.bindCollection db.collection optionsOf(Model).collection
 
-    return ModelInstance
+    return Model
 
 # Helpers
 
