@@ -912,6 +912,9 @@ isEmbeddedArray = (value) ->
 
 isInstanceOf = (Type, value) ->
   switch Type
+    when Object
+      return true
+
     when String
       return _.isString value
 
