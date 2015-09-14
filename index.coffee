@@ -461,24 +461,40 @@ class AbstractModel
       transformPath @, path
 
   ###
-  Public: Update
+    Public: Update
 
-  * `updates` {Object}
-  * `options` {optional} {Object}
-  * `callback` (optional) {Function}
+    * `updates` {Object}
+    * `options` {optional} {Object}
+    * `callback` (optional) {Function}
 
-  return {Promise} resolve with new document.
-
-  TODO: embedded
-
+    return {Promise} resolve with new document.
   ###
   update: ->
-    {args, callback} = splitArguments arguments
+    {args: [updates, options], callback} = splitArguments arguments
 
-    return modelOf(@).findByIdAndUpdate(@_id, args...).then (document) =>
+    if isEmbeddedDocument(@) or isEmbeddedArray(@)
+      updates = addPrefixForUpdates @, updates
+      id = @parent()._id
+    else
+      id = @_id
+
+    querier =
+      _id: id
+
+    if isEmbeddedArray @
+      querier["#{@_path}._id"] = @_id
+
+    return parentModelOf(@).findOneAndUpdate(querier, updates, options).then (document) =>
       if isDocument document
-        refreshDocument @, document
-      return document
+        if isEmbeddedDocument(@) or isEmbeddedArray(@)
+          refreshDocument @parent(), document
+          if isEmbeddedDocument @
+            refreshDocument @, dotGet document, @_path
+          else
+            refreshDocument @, dotGet(document, @_path)[@_index]
+        else
+          refreshDocument @, document
+      return @
     .nodeify callback
 
   ###
@@ -580,7 +596,7 @@ class AbstractModel
 
       querier["#{@_path}._id"] = @_id
 
-      @parent().updateWhen querier, modifier
+      @parent().updateWhen(querier, modifier).nodeify callback
 
     else if isEmbeddedArray @
       modifier =
@@ -589,7 +605,7 @@ class AbstractModel
       modifier.$pull[@_path] =
         _id: @_id
 
-      @parent().update modifier
+      @parent().update(modifier).nodeify callback
 
     else
       modelOf(@).execute('remove')(_id: @_id).nodeify callback
@@ -930,6 +946,12 @@ modelOf = (value) ->
   else
     return value?.constructor
 
+parentModelOf = (value) ->
+  if value?._parent
+    return parentModelOf value?._parent
+  else
+    return modelOf value
+
 schemaOf = (value) ->
   return modelOf(value)?._schema
 
@@ -1056,7 +1078,7 @@ addVersionForUpdates = (updates) ->
 addPrefixForUpdates = helpers.addPrefixForUpdates = (document, updates) ->
   result = {}
 
-  if document._index
+  if document._index?
     prefix = "#{document._path}.$."
   else if document._path
     prefix = "#{document._path}."

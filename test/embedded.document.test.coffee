@@ -57,6 +57,19 @@ describe 'embedded.document', ->
         done()
 
   describe 'update document', ->
+    it 'update document', ->
+      User.create
+        name: 'jysperm'
+        token:
+          code: '03b9a5f0d18bc6b6'
+      .then (jysperm) ->
+        jysperm.token.update
+          $set:
+            code: 'updated'
+        .then (token) ->
+          token.code.should.be.equal 'updated'
+          User.findById(jysperm._id).then (jysperm) ->
+            jysperm.token.code.should.be.equal 'updated'
 
   describe 'modify document', ->
 
