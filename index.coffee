@@ -261,7 +261,7 @@ class AbstractModel
     return @execute('remove')(args...).nodeify callback
 
   ###
-  Public: Fine one and update
+  Public: Find one and update
 
   * `query` {Object}
   * `updates` {Object}
@@ -479,6 +479,26 @@ class AbstractModel
       if isDocument document
         refreshDocument @, document
       return document
+    .nodeify callback
+
+  ###
+    Public: Update with a query
+
+    * `query` {Object}
+    * `updates` {Object}
+    * `options` (optional) {Object}
+    * `callback` (optional) {Function}
+
+    return {Promise} resolve with document.
+  ###
+  updateWhen: ->
+    {args: [query, updates, options], callback} = splitArguments arguments
+
+    query._id = @_id
+
+    modelOf(@).findOneAndUpdate(query, updates, options).tap (document) =>
+      if isDocument document
+        refreshDocument @, document
     .nodeify callback
 
   ###

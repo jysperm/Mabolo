@@ -4,6 +4,7 @@ describe 'document.methods', ->
   User = mabolo.model 'User',
     name: String
     age: Number
+    description: String
 
   jysperm = null
 
@@ -27,6 +28,30 @@ describe 'document.methods', ->
           age: 20
       .then ->
         jysperm.age.should.be.equal 20
+
+  describe 'updateWhen', ->
+    it 'should update', ->
+      jysperm.updateWhen
+        age:
+          $lte: 19
+      ,
+        $set:
+          description: 'Updated'
+      .then (document) ->
+        document.description.should.be.equal 'Updated'
+
+    it 'should not update', ->
+      jysperm.updateWhen
+        age:
+          $lt: 19
+      ,
+        $set:
+          description: 'Updated'
+      .then (document) ->
+        expect(document).to.not.exists
+
+        User.findById(jysperm._id).then (jysperm) ->
+          expect(jysperm.description).to.not.exists
 
   describe 'remove', ->
     it 'should success', ->
