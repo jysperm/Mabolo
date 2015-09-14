@@ -59,3 +59,15 @@ describe 'embedded.document', ->
   describe 'update document', ->
 
   describe 'modify document', ->
+
+  describe 'remove document', ->
+    it 'remove document', ->
+      User.create
+        name: 'jysperm'
+        token:
+          code: '03b9a5f0d18bc6b6'
+      .then (jysperm) ->
+        jysperm.token.remove().then ->
+          expect(jysperm.token).to.not.exists
+          User.findById(jysperm._id).then (jysperm) ->
+            expect(jysperm.token).to.not.exists

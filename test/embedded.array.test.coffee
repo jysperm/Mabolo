@@ -50,3 +50,23 @@ describe 'embedded.array', ->
         _.pluck(jysperm.tokens, 'code').should.be.eql ['1', '2']
 
   describe 'update documents', ->
+
+  describe 'remove document', ->
+    Token = mabolo.model 'Token',
+      code: String
+
+    User = mabolo.model 'User',
+      name: String
+      tokens: [Token]
+
+    it 'remove document', ->
+      User.create
+        name: 'jysperm'
+        tokens: [
+          {code: '1'}, {code: '2'}
+        ]
+      .then (jysperm) ->
+        jysperm.tokens[0].remove().then ->
+          jysperm.tokens.length.should.be.equal 1
+          User.findById(jysperm._id).then (jysperm) ->
+            jysperm.tokens.length.should.be.equal 1

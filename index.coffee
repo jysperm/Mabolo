@@ -561,18 +561,38 @@ class AbstractModel
     .nodeify callback
 
   ###
-  Public: Remove
+    Public: Remove
 
-  * `callback` (optional) {Function}
+    * `callback` (optional) {Function}
 
-  return a {Promise}.
-
-  TODO: embedded
-
+    return a {Promise}.
   ###
   remove: (callback) ->
     @_isRemoved = true
-    modelOf(@).execute('remove')(_id: @_id).nodeify callback
+
+    if isEmbeddedDocument @
+      modifier =
+        $unset: {}
+
+      modifier.$unset[@_path] = true
+
+      querier = {}
+
+      querier["#{@_path}._id"] = @_id
+
+      @parent().updateWhen querier, modifier
+
+    else if isEmbeddedArray @
+      modifier =
+        $pull: {}
+
+      modifier.$pull[@_path] =
+        _id: @_id
+
+      @parent().update modifier
+
+    else
+      modelOf(@).execute('remove')(_id: @_id).nodeify callback
 
   ###
   Section: Embedded Document
@@ -589,7 +609,7 @@ class AbstractModel
   ```
 
   * Every embedded document has a `_id` and `__v`
-  * Validators of embedded document will be run after parent document
+  * Validators of embedded document will be run before parent document
   * Embedded document will be create when parent document created
   * `String`, `Number`, `Date`, `ObjectID` also can be used as an Model
 
@@ -816,7 +836,8 @@ refreshDocument = (document, latest) ->
 
   for path, spec of schemaOf(document)
     if isModel spec.type
-      refreshDocument dotGet(document, path), dotGet(latest, path)
+      if dotGet(latest, path)
+        refreshDocument dotGet(document, path), dotGet(latest, path)
 
     else
       dotSet document, path, dotGet(latest, path)
@@ -925,10 +946,10 @@ isDocument = (value) ->
   return isModel value?.constructor
 
 isEmbeddedDocument = (value) ->
-  return value?._path and !value._index
+  return value?._path and value._index == undefined
 
 isEmbeddedArray = (value) ->
-  return value?._path and value._index
+  return value?._path and value._index?
 
 isInstanceOf = (Type, value) ->
   switch Type
