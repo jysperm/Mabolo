@@ -529,8 +529,6 @@ class AbstractModel
   * If `modifier` return a rejected Promise or throw a exception, changes to document will be rollback.
   * If validating fail, document will be rollback too.
 
-  TODO: embedded
-
   ## Examples
 
   Modify exists document atomically:
@@ -544,36 +542,60 @@ class AbstractModel
 
   ###
   modify: (modifier, callback) ->
-    id = @_id
-    model = modelOf @
+    model = parentModelOf @
+
+    if isEmbeddedDocument(@) or isEmbeddedArray(@)
+      id = @parent()._id
+    else
+      id = @_id
 
     unless id
       throw new Error 'Document not yet exists in MongoDB'
 
     commit = (document) ->
-      version = document.__v
+      if isEmbeddedDocument(document) or isEmbeddedArray(document)
+        version = document.parent().__v
+      else
+        version = document.__v
 
       Q().then ->
         return modifier.call document, document
       .then ->
-        return document.validate()
+        if isEmbeddedDocument(document) or isEmbeddedArray(document)
+          document.parent().validate()
+        else
+          document.validate()
       .then ->
-        model.findOneAndUpdate(
+        querier =
           _id: id
           __v: version
-        , _.extend(document,
-          __v: randomVersion()
-        )).then (result) ->
+
+        updates =
+          $set:
+            __v: randomVersion()
+
+        if isEmbeddedDocument(document)
+          updates.$set[document._path] = document
+        else if isEmbeddedArray(document)
+          querier["#{document._path}._id"] = document._id
+          updates.$set["#{document._path}.$"] = document
+        else
+          updates = _.extend document,
+            __v: randomVersion()
+
+        model.findOneAndUpdate(querier, updates).then (result) ->
           if result
-            return result
+            return pickEmbeddedDocument result, document
           else
-            model.findById(id).then commit
+            model.findById(id).then (result) ->
+              return pickEmbeddedDocument result, document
+            .then commit
 
     commit(@).then (document) =>
       refreshDocument @, document
     .catch (err) =>
       model.findById(id).then (latest) =>
-        refreshDocument @, latest
+        refreshDocument @, pickEmbeddedDocument(latest, @)
     .nodeify callback
 
   ###
@@ -845,6 +867,14 @@ pickDocument = (document, keys...) ->
     result = _.pick document, (_.keys document)...
 
   return _.extend result, _.pick(document, keys...)
+
+pickEmbeddedDocument = (document, embedded) ->
+  if isEmbeddedDocument(embedded)
+    return dotGet document, embedded._path
+  else if isEmbeddedArray(embedded)
+    return dotGet(document, embedded._path)[embedded._index]
+  else
+    return document
 
 refreshDocument = (document, latest) ->
   unless optionsOf(document).strictPick

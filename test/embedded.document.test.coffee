@@ -72,6 +72,16 @@ describe 'embedded.document', ->
             jysperm.token.code.should.be.equal 'updated'
 
   describe 'modify document', ->
+    it 'modify document', ->
+      User.create
+        name: 'jysperm'
+        token:
+          code: '03b9a5f0d18bc6b6'
+      .then (jysperm) ->
+        jysperm.token.modify ->
+          jysperm.token.code = 'updated'
+        .then (token) ->
+          token.code.should.be.equal 'updated'
 
   describe 'remove document', ->
     it 'remove document', ->

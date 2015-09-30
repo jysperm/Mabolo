@@ -72,6 +72,26 @@ describe 'embedded.array', ->
           User.findById(jysperm._id).then (jysperm) ->
             jysperm.tokens[0].code.should.be.equal '3'
 
+  describe 'modify document', ->
+    Token = mabolo.model 'Token',
+      code: String
+
+    User = mabolo.model 'User',
+      name: String
+      tokens: [Token]
+
+    it 'modify document', ->
+      User.create
+        name: 'jysperm'
+        tokens: [
+          code: '03b9a5f0d18bc6b6'
+        ]
+      .then (jysperm) ->
+        jysperm.tokens[0].modify ->
+          jysperm.tokens[0].code = 'updated'
+        .then (token) ->
+          token.code.should.be.equal 'updated'
+
   describe 'remove document', ->
     Token = mabolo.model 'Token',
       code: String
