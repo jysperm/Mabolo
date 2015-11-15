@@ -19,19 +19,19 @@
     "test": "mocha --compilers coffee:coffee-script/register --require test/env -- test/*.test.coffee"
   },
   "dependencies": {
-    "coffee-script": "1.7.1",
-    "inflection": "1.6.0",
-    "mongodb": "1.4.28",
-    "q": "1.2.0",
-    "underscore": "1.7.0"
+    "coffee-script": "1.10.0",
+    "inflection": "1.7.1",
+    "mongodb": "2.0.48",
+    "q": "1.4.1",
+    "underscore": "1.8.3"
   },
   "devDependencies": {
-    "chai": "1.9.2",
-    "del": "1.1.1",
-    "endokken": "lee-dohm/endokken#v0.2.0",
-    "gulp": "3.8.11",
+    "chai": "3.4.0",
+    "del": "2.1.0",
+    "endokken": "0.3.0",
+    "gulp": "3.9.0",
     "gulp-rsync": "0.0.5",
-    "gulp-shell": "0.3.0",
-    "mocha": "2.0.0"
+    "gulp-shell": "0.5.1",
+    "mocha": "2.3.3"
   }
 }

@@ -349,6 +349,12 @@ class AbstractModel
       collectionDeferred: Q.defer()
 
   @transform: (document) ->
+    if _.isArray(document?.ops) and document?.result?.ok is 1
+      document = document.ops
+
+    if not _.isUndefined(document?.value) and document?.ok is 1
+      document = document.value
+
     if document?.cursorId?._bsontype
       return document
 
