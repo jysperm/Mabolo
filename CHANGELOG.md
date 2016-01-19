@@ -1,3 +1,7 @@
+## 0.3.5 (2016.1.20)
+
+* Remove runtime dependency `coffee-script`.
+
 ## 0.3.4 (2015.11.15)
 
 * Upgrade `mongodb` to 2.x.
