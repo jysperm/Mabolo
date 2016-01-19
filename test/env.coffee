@@ -5,7 +5,7 @@ _ = require 'underscore'
 
 _.extend global,
   mongodb_uri: 'mongodb://localhost/mabolo-test'
-  Mabolo: require '../index'
+  Mabolo: require '..'
   expect: chai.expect
   Q: require 'q'
   _: _

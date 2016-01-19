@@ -16,16 +16,19 @@
     }
   ],
   "scripts": {
+    "compile": "coffee --bare --compile index.coffee",
+    "prepublish": "npm run compile",
+    "pretest": "npm run compile",
     "test": "mocha --compilers coffee:coffee-script/register --require test/env -- test/*.test.coffee"
   },
   "dependencies": {
-    "coffee-script": "1.10.0",
     "inflection": "1.7.1",
     "mongodb": "2.0.48",
     "q": "1.4.1",
     "underscore": "1.8.3"
   },
   "devDependencies": {
+    "coffee-script": "1.10.0",
     "chai": "3.4.0",
     "del": "2.1.0",
     "endokken": "0.3.0",
