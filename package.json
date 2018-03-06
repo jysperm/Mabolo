@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "inflection": "1.7.1",
-    "mongodb": "2.0.48",
+    "mongodb": "2.2.13",
     "q": "1.4.1",
     "underscore": "1.8.3"
   },
